@@ -72,7 +72,8 @@ public class AuthService implements UserDetailsService {
         user.setCreatedAt(ZonedDateTime.now());
         user.setUpdatedAt(ZonedDateTime.now());
 
-        userRepository.save(user);
+        // First save the user to generate the ID
+        user = userRepository.save(user);
 
         String roleName = userDTO.getRole() != null ? userDTO.getRole().toUpperCase() : "ROLE_USER";
         Role role = roleRepository.findByName(roleName)
@@ -83,10 +84,23 @@ public class AuthService implements UserDetailsService {
         userRole.setRoleId(role.getRoleId());
         userRole.setUser(user);
         userRole.setRole(role);
-        userRoleRepository.save(userRole);
-        user.setUserRoles(Set.of(userRole));
-        userRepository.save(user);
+
+        // Save the user role
+        userRole = userRoleRepository.save(userRole);
+
+        // Initialize the userRoles set if null
+        if (user.getUserRoles() == null) {
+            user.setUserRoles(new HashSet<>());
+        }
+
+        // Add the role to the user's roles
+        user.getUserRoles().add(userRole);
+
+        // Update the user to maintain the relationship
+        user = userRepository.save(user);
+
         otpService.generateAndSendOtp(user.getUserId(), ipAddress, deviceInfo);
+
         UserDTO responseDTO = new UserDTO();
         responseDTO.setEmail(user.getEmail());
         responseDTO.setUsername(user.getUsername());

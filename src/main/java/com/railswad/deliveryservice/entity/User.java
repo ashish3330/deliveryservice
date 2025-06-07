@@ -2,6 +2,7 @@ package com.railswad.deliveryservice.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import java.time.ZonedDateTime;
 import java.util.Set;
@@ -9,6 +10,7 @@ import java.util.Set;
 @Entity
 @Table(name = "users")
 @Data
+@EqualsAndHashCode(exclude = {"userRoles"})
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
