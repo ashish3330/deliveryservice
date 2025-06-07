@@ -36,7 +36,7 @@ public class OtpService {
     }
 
     @Transactional
-    public String generateAndSendOtp(Long userId, String ipAddress, String deviceInfo) {
+    public void generateAndSendOtp(Long userId, String ipAddress, String deviceInfo) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + userId));
 
@@ -78,8 +78,8 @@ public class OtpService {
 
             // Send OTP via email
             sendOtp(user.getEmail(), otp);
+            logger.info("OTP: {}", otp);
             logger.info("OTP generated and sent for user ID: {}", userId);
-            return otp;
         } catch (MailException e) {
             logger.error("Failed to send OTP email to user ID {}: {}", userId, e.getMessage());
             throw new RuntimeException("Failed to send OTP email", e);

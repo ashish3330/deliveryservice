@@ -2,8 +2,8 @@ package com.railswad.deliveryservice.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+
 import java.time.ZonedDateTime;
-import java.util.HashSet;
 import java.util.Set;
 
 @Entity
@@ -12,6 +12,7 @@ import java.util.Set;
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "user_id")
     private Long userId;
 
     @Column(unique = true, nullable = false)
@@ -44,15 +45,6 @@ public class User {
     @Column(name = "last_login")
     private ZonedDateTime lastLogin;
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "user_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
-    private Set<Role> roles = new HashSet<>();
-
-    // OTP field for verification
-    @Column(name = "otp")
-    private String otp;
+    @OneToMany(mappedBy = "user", fetch = FetchType.EAGER)
+    private Set<UserRole> userRoles;
 }

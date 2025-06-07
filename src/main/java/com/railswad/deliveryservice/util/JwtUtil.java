@@ -82,12 +82,11 @@ public class JwtUtil {
         }
     }
 
-    public Boolean validateToken(String token, String username) {
+    public Boolean validateToken(String token) {
         try {
-            final String extractedUsername = extractUsername(token);
-            return (extractedUsername.equals(username) && !isTokenExpired(token));
+            return ( !isTokenExpired(token));
         } catch (Exception e) {
-            logger.error("Error validating JWT for username {}: {}", username, e.getMessage());
+            logger.error("Error validating JWT for :{}", e.getMessage());
             return false;
         }
     }

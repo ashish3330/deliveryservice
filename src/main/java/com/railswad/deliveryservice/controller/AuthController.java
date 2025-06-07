@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,6 +26,7 @@ public class AuthController {
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     @Autowired
+    @Lazy
     private AuthService authService;
 
     @PostMapping("/register")
@@ -65,12 +67,11 @@ public class AuthController {
             AuthResponse authResponse = new AuthResponse();
             authResponse.setToken(token);
 
-            // Set JWT in HTTP-only cookie
             Cookie cookie = new Cookie("jwtToken", token);
             cookie.setHttpOnly(true);
-            cookie.setSecure(true); // Enable in production with HTTPS
+            cookie.setSecure(true);
             cookie.setPath("/");
-            cookie.setMaxAge(10 * 60 * 60); // 10 hours
+            cookie.setMaxAge(10 * 60 * 60);
             response.addCookie(cookie);
 
             return ResponseEntity.ok(authResponse);
@@ -102,7 +103,6 @@ public class AuthController {
     public ResponseEntity<?> logout(HttpServletResponse response) {
         try {
             logger.info("Logout request received");
-            // Invalidate JWT cookie by setting max age to 0
             Cookie cookie = new Cookie("jwtToken", null);
             cookie.setHttpOnly(true);
             cookie.setSecure(true);
@@ -116,7 +116,6 @@ public class AuthController {
         }
     }
 
-    // Helper classes for consistent response format
     private static class ErrorResponse {
         private String error;
 
