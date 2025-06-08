@@ -1,28 +1,27 @@
 package com.railswad.deliveryservice.dto;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+import java.math.BigDecimal;
+
+@Setter
+@Getter
 public class VendorSalesSummaryDTO {
+    // Getters and setters
     private Long vendorId;
-    private String vendorName;
-    private Long totalOrders;
-    private Double totalRevenue;
+    private String businessName;
+    private Long orderCount;
+    private Double totalAmount;
     private Double averageOrderValue;
-    private Long deliveredOrders;
-    private Long pendingOrders;
-    private Long cancelledOrders;
 
-    public VendorSalesSummaryDTO(Long vendorId, String vendorName, Long totalOrders,
-                                 Double totalRevenue, Double averageOrderValue,
-                                 Long deliveredOrders, Long pendingOrders, Long cancelledOrders) {
+    // Constructor matching the query
+    public VendorSalesSummaryDTO(Long vendorId, String businessName, Long orderCount, Double totalAmount, Double averageOrderValue) {
         this.vendorId = vendorId;
-        this.vendorName = vendorName;
-        this.totalOrders = totalOrders;
-        this.totalRevenue = totalRevenue;
+        this.businessName = businessName;
+        this.orderCount = orderCount;
+        this.totalAmount = totalAmount;
         this.averageOrderValue = averageOrderValue;
-        this.deliveredOrders = deliveredOrders;
-        this.pendingOrders = pendingOrders;
-        this.cancelledOrders = cancelledOrders;
     }
+
 }

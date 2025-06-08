@@ -1,6 +1,7 @@
 package com.railswad.deliveryservice.repository;
 
 import com.railswad.deliveryservice.dto.TopSellingItemDTO;
+import com.railswad.deliveryservice.entity.Order;
 import com.railswad.deliveryservice.entity.OrderItem;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -8,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.ZonedDateTime;
+import java.util.Arrays;
 import java.util.List;
 
 public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
@@ -41,4 +43,6 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
                                                      @Param("endDate") ZonedDateTime endDate,
                                                      @Param("sortBy") String sortBy,
                                                      Pageable pageable);
+
+    List <OrderItem >findByOrder(Order updatedOrder);
 }

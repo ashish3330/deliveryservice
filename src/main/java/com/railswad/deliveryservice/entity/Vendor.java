@@ -1,25 +1,23 @@
 package com.railswad.deliveryservice.entity;
 
-import com.railswad.deliveryservice.entity.MenuCategory;
-import com.railswad.deliveryservice.entity.Station;
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-import java.util.List;
-
+@Setter
 @Entity
+@Getter
 @Table(name = "vendors")
-@Data
 public class Vendor {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long vendorId;
 
-    @MapsId
-    @OneToOne
-    @JoinColumn(name = "vendor_id")
+    @ManyToOne
+    @JoinColumn(name = "user_id")
     private User user;
 
-    @Column(name = "business_name", nullable = false)
+    @Column(name = "business_name")
     private String businessName;
 
     private String description;
@@ -27,14 +25,13 @@ public class Vendor {
     @Column(name = "logo_url")
     private String logoUrl;
 
-    @Column(name = "fssai_license", nullable = false)
+    @Column(name = "fssai_license")
     private String fssaiLicense;
 
     @ManyToOne
-    @JoinColumn(name = "station_id", nullable = false)
+    @JoinColumn(name = "station_id")
     private Station station;
 
-    @Column(nullable = false)
     private String address;
 
     @Column(name = "preparation_time_min")
@@ -43,14 +40,11 @@ public class Vendor {
     @Column(name = "min_order_amount")
     private Double minOrderAmount;
 
-    @Column(name = "is_verified")
-    private boolean isVerified;
+    private Boolean verified;
 
     private Double rating;
 
     @Column(name = "active_status")
-    private boolean activeStatus;
+    private Boolean activeStatus;
 
-    @OneToMany(mappedBy = "vendor", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<MenuCategory> menuCategories;
 }

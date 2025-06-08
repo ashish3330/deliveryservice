@@ -1,17 +1,15 @@
 package com.railswad.deliveryservice.dto;
 
-
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalTime;
 
-@Getter
-@Setter
+@Data
 public class MenuItemDTO {
     private Long itemId;
     private Long categoryId;
+    private String categoryName; // Added for Excel upload
     private String itemName;
     private String description;
     private BigDecimal price;

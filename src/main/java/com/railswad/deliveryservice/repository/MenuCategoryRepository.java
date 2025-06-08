@@ -1,6 +1,7 @@
 package com.railswad.deliveryservice.repository;
 
 import com.railswad.deliveryservice.entity.MenuCategory;
+import com.railswad.deliveryservice.entity.Vendor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,4 +13,5 @@ import java.util.List;
 public interface MenuCategoryRepository extends JpaRepository<MenuCategory, Long> {
     List<MenuCategory> findByVendorVendorId(Long vendorId);
     Page<MenuCategory> findByVendorVendorId(Long vendorId, Pageable pageable);
+    MenuCategory findByVendorAndCategoryName(Vendor vendor, String categoryName);
 }

@@ -1,18 +1,30 @@
 package com.railswad.deliveryservice.dto;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+@Setter
+@Getter
 public class OrderStatusTrendDTO {
-    private String period;
-    private Long delivered;
-    private Long pending;
-    private Long cancelled;
+    // Getters and setters
+    private String date; // "YYYY-MM" or "YYYY-MM-DD" depending on groupBy
+    private Long deliveredCount;
+    private Long pendingCount;
+    private Long cancelledCount;
 
-    public OrderStatusTrendDTO(String period, Long delivered, Long pending, Long cancelled) {
-        this.period = period;
-        this.delivered = delivered;
-        this.pending = pending;
-        this.cancelled = cancelled;
+    // Constructor to handle both Date and String inputs
+    public OrderStatusTrendDTO(Object date, Long deliveredCount, Long pendingCount, Long cancelledCount) {
+        if (date instanceof Date) {
+            this.date = new SimpleDateFormat("yyyy-MM-dd").format((Date) date);
+        } else {
+            this.date = date.toString(); // Handles String like "2025-06"
+        }
+        this.deliveredCount = deliveredCount;
+        this.pendingCount = pendingCount;
+        this.cancelledCount = cancelledCount;
     }
+
 }

@@ -1,18 +1,23 @@
 package com.railswad.deliveryservice.dto;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+@Setter
+@Getter
 public class StationSalesOverviewDTO {
-    private Long stationId;
+    // Getters and setters
+    private Integer stationId;
     private String stationName;
-    private Long totalOrders;
-    private Double totalRevenue;
+    private Long orderCount;
+    private Double totalAmount;
 
-    public StationSalesOverviewDTO(Long stationId, String stationName, Long totalOrders, Double totalRevenue) {
+    // Constructor matching the query
+    public StationSalesOverviewDTO(Integer stationId, String stationName, Long orderCount, Double totalAmount) {
         this.stationId = stationId;
         this.stationName = stationName;
-        this.totalOrders = totalOrders;
-        this.totalRevenue = totalRevenue;
+        this.orderCount = orderCount;
+        this.totalAmount = totalAmount;
     }
+
 }

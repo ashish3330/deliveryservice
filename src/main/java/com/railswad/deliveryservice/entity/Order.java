@@ -1,9 +1,10 @@
 package com.railswad.deliveryservice.entity;
 
-import jakarta.persistence.Column;
 import jakarta.persistence.*;
 import lombok.Data;
+
 import java.time.ZonedDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "orders")
@@ -73,4 +74,11 @@ public class Order {
 
     @Column(name = "delivery_instructions")
     private String deliveryInstructions;
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    private List<OrderItem> orderItems;
+
+    @OneToOne
+    @JoinColumn(name = "invoice_id")
+    private Invoice invoice;
 }

@@ -8,6 +8,7 @@ import com.railswad.deliveryservice.exception.ResourceNotFoundException;
 import com.railswad.deliveryservice.repository.StationRepository;
 import com.railswad.deliveryservice.repository.UserRepository;
 import com.railswad.deliveryservice.repository.VendorRepository;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,9 +29,18 @@ public class VendorService {
     public VendorDTO createVendor(VendorDTO vendorDTO) {
         User user = userRepository.findById(vendorDTO.getVendorId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + vendorDTO.getVendorId()));
-        Station station = stationRepository.findById(vendorDTO.getStationId())
+        Station station = stationRepository.findById(Math.toIntExact(vendorDTO.getStationId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Station not found with id: " + vendorDTO.getStationId()));
 
+        Vendor vendor = getVendor(vendorDTO, user, station);
+
+        Vendor savedVendor = vendorRepository.save(vendor);
+        vendorDTO.setVendorId(savedVendor.getVendorId());
+        return vendorDTO;
+    }
+
+    @NotNull
+    private static Vendor getVendor(VendorDTO vendorDTO, User user, Station station) {
         Vendor vendor = new Vendor();
         vendor.setUser(user);
         vendor.setBusinessName(vendorDTO.getBusinessName());
@@ -44,16 +54,13 @@ public class VendorService {
         vendor.setVerified(vendorDTO.isVerified());
         vendor.setRating(vendorDTO.getRating());
         vendor.setActiveStatus(vendorDTO.isActiveStatus());
-
-        Vendor savedVendor = vendorRepository.save(vendor);
-        vendorDTO.setVendorId(savedVendor.getVendorId());
-        return vendorDTO;
+        return vendor;
     }
 
     public VendorDTO updateVendor(Long vendorId, VendorDTO vendorDTO) {
         Vendor vendor = vendorRepository.findById(vendorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + vendorId));
-        Station station = stationRepository.findById(vendorDTO.getStationId())
+        Station station = stationRepository.findById(Math.toIntExact(vendorDTO.getStationId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Station not found with id: " + vendorDTO.getStationId()));
 
         vendor.setBusinessName(vendorDTO.getBusinessName());
@@ -88,13 +95,13 @@ public class VendorService {
         vendorDTO.setDescription(vendor.getDescription());
         vendorDTO.setLogoUrl(vendor.getLogoUrl());
         vendorDTO.setFssaiLicense(vendor.getFssaiLicense());
-        vendorDTO.setStationId(vendor.getStation().getStationId());
+        vendorDTO.setStationId(Long.valueOf(vendor.getStation().getStationId()));
         vendorDTO.setAddress(vendor.getAddress());
         vendorDTO.setPreparationTimeMin(vendor.getPreparationTimeMin());
         vendorDTO.setMinOrderAmount(vendor.getMinOrderAmount());
-        vendorDTO.setVerified(vendor.isVerified());
+        vendorDTO.setVerified(vendor.getVerified());
         vendorDTO.setRating(vendor.getRating());
-        vendorDTO.setActiveStatus(vendor.isActiveStatus());
+        vendorDTO.setActiveStatus(vendor.getActiveStatus());
         return vendorDTO;
     }
 
@@ -106,13 +113,13 @@ public class VendorService {
             vendorDTO.setDescription(vendor.getDescription());
             vendorDTO.setLogoUrl(vendor.getLogoUrl());
             vendorDTO.setFssaiLicense(vendor.getFssaiLicense());
-            vendorDTO.setStationId(vendor.getStation().getStationId());
+            vendorDTO.setStationId(Long.valueOf(vendor.getStation().getStationId()));
             vendorDTO.setAddress(vendor.getAddress());
             vendorDTO.setPreparationTimeMin(vendor.getPreparationTimeMin());
             vendorDTO.setMinOrderAmount(vendor.getMinOrderAmount());
-            vendorDTO.setVerified(vendor.isVerified());
+            vendorDTO.setVerified(vendor.getVerified());
             vendorDTO.setRating(vendor.getRating());
-            vendorDTO.setActiveStatus(vendor.isActiveStatus());
+            vendorDTO.setActiveStatus(vendor.getActiveStatus());
             return vendorDTO;
         });
     }

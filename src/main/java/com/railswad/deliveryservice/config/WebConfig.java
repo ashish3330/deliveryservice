@@ -13,18 +13,13 @@ public class WebConfig {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/**")
-                        .allowedOrigins(
-                                "http://localhost:3000",
-                                "http://ec2-13-203-66-203.ap-south-1.compute.amazonaws.com:8080",
-                                "http://ec2-13-203-66-203.ap-south-1.compute.amazonaws.com:9091",
-                                "http://inventory-jwellary-bucket.s3-website.ap-south-1.amazonaws.com"
-                        )
+                registry.addMapping("/api/**")  // More specific mapping recommended
+                        .allowedOrigins("http://localhost:5173")
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                        .allowedHeaders("Authorization", "Content-Type", "Accept", "X-Requested-With")
-                        .exposedHeaders("Authorization")
+                        .allowedHeaders("*")
+                        .exposedHeaders("Authorization")  // Expose any custom headers
                         .allowCredentials(true)
-                        .maxAge(3600);
+                        .maxAge(3600);  // Cache preflight response
             }
         };
     }

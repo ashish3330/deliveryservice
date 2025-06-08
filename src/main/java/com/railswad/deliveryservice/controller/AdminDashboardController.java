@@ -77,7 +77,7 @@ public class AdminDashboardController {
             @PathVariable Long stationId) {
         ZonedDateTime endDate = ZonedDateTime.now().with(TemporalAdjusters.firstDayOfMonth());
         ZonedDateTime startDate = endDate.minusMonths(1);
-        StationSalesSummaryDTO summary = orderRepository.getStationLastMonthSales(stationId, startDate, endDate);
+        StationSalesSummaryDTO summary = orderRepository.getStationLastMonthSales(Math.toIntExact(stationId), startDate, endDate);
         return ResponseEntity.ok(summary);
     }
 
@@ -89,7 +89,7 @@ public class AdminDashboardController {
             @RequestParam(defaultValue = "5") int limit,
             @RequestParam(defaultValue = "revenue") String sortBy) {
         List<VendorSalesOverviewDTO> topVendors = orderRepository.getTopVendorsByStation(
-                stationId, startDate, endDate, sortBy, PageRequest.of(0, limit));
+                Math.toIntExact(stationId), startDate, endDate, sortBy, PageRequest.of(0, limit));
         return ResponseEntity.ok(topVendors);
     }
 
@@ -101,13 +101,5 @@ public class AdminDashboardController {
         return ResponseEntity.ok(overview);
     }
 
-    @GetMapping("/orders/status-trends")
-    public ResponseEntity<List<OrderStatusTrendDTO>> getOrderStatusTrends(
-            @RequestParam(required = false) Long vendorId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime endDate,
-            @RequestParam(defaultValue = "month") String groupBy) {
-        List<OrderStatusTrendDTO> trends = orderRepository.getOrderStatusTrends(vendorId, startDate, endDate, groupBy);
-        return ResponseEntity.ok(trends);
-    }
+
 }
