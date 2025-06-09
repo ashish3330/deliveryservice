@@ -18,8 +18,9 @@ public class MenuItem {
     @Column(name = "item_id")
     private Long itemId;
 
-    @Column(name = "category_name", nullable = false, length = 100)
-    private String categoryName; // References MenuCategory.categoryName
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable = false)
+    private MenuCategory category; // Reference to MenuCategory
 
     @Column(name = "item_name", nullable = false, length = 100)
     private String itemName;

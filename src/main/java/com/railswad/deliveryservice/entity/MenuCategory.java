@@ -1,6 +1,5 @@
 package com.railswad.deliveryservice.entity;
 
-import com.railswad.deliveryservice.entity.Vendor;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;

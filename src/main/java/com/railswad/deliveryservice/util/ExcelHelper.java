@@ -61,8 +61,11 @@ public class ExcelHelper {
                     dto.setItemName(getValue(formatter, row, headerMap, "itemname"));
                     dto.setDescription(getValue(formatter, row, headerMap, "description"));
 
-                    String priceStr = getValue(formatter, row, headerMap, "price");
-                    dto.setPrice(priceStr.isEmpty() ? null : new BigDecimal(priceStr));
+                    String basePriceStr = getValue(formatter, row, headerMap, "basePrice");
+                    dto.setBasePrice(basePriceStr.isEmpty() ? null : new BigDecimal(basePriceStr));
+
+                    String vendorPriceStr = getValue(formatter, row, headerMap, "basePrice");
+                    dto.setVendorPrice(basePriceStr.isEmpty() ? null : new BigDecimal(vendorPriceStr));
 
                     String vegetarianStr = getValue(formatter, row, headerMap, "vegetarian");
                     dto.setVegetarian(vegetarianStr.equalsIgnoreCase("true"));

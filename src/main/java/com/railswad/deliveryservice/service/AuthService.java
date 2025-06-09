@@ -11,6 +11,7 @@ import com.railswad.deliveryservice.exception.*;
 import com.railswad.deliveryservice.repository.RoleRepository;
 import com.railswad.deliveryservice.repository.UserRepository;
 import com.railswad.deliveryservice.repository.UserRoleRepository;
+import com.railswad.deliveryservice.util.JwtUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,7 +50,7 @@ public class AuthService implements UserDetailsService {
     private PasswordEncoder passwordEncoder;
 
     @Autowired
-    private JwtService jwtService;
+    private JwtUtil jwtService;
 
     @Autowired
     @Lazy
@@ -244,63 +245,41 @@ public class AuthService implements UserDetailsService {
     public String login(String identifier, String password) {
         logger.info("Attempting login for identifier: {}", identifier);
         if (!StringUtils.hasText(identifier) || !StringUtils.hasText(password)) {
-            logger.warn("Login failed: Identifier or password is empty");
             throw new InvalidInputException("Identifier and password are required");
         }
 
-        User user = null;
-        if (identifier.contains("@")) {
-            user = userRepository.findByEmail(identifier)
-                    .orElseThrow(() -> {
-                        logger.warn("User not found during login: {}", identifier);
-                        return new UsernameNotFoundException("User not found: " + identifier);
-                    });
-        } else {
-            user = userRepository.findByPhone(identifier)
-                    .orElseThrow(() -> {
-                        logger.warn("User not found during login: {}", identifier);
-                        return new UsernameNotFoundException("User not found: " + identifier);
-                    });
-        }
+        User user = identifier.contains("@")
+                ? userRepository.findByEmail(identifier)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + identifier))
+                : userRepository.findByPhone(identifier)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + identifier));
 
         try {
-            Authentication authentication = authenticationManager.authenticate(
+            authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(identifier, password)
             );
-            logger.debug("Authentication successful for identifier: {}", identifier);
         } catch (BadCredentialsException e) {
-            logger.warn("Login failed for identifier: {} due to invalid credentials", identifier);
             throw new InvalidCredentialsException("Invalid identifier or password");
-        } catch (Exception e) {
-            logger.error("Authentication failed for identifier: {} due to: {}",
-                    identifier, e.getMessage(), e);
-            throw new ServiceException("AUTHENTICATION_FAILED", "Authentication failed due to internal error");
         }
 
         if (!user.isVerified()) {
-            logger.warn("Login failed for user ID: {}: Account not verified", user.getUserId());
             throw new UnauthorizedException("Account not verified");
         }
 
-        User finalUser = user;
-        String role = user.getUserRoles().stream()
-                .map(userRole -> userRole.getRole().getName())
+        String rawRole = user.getUserRoles().stream()
+                .map(userRole -> userRole.getRole().getName()) // e.g., "ROLE_ADMIN"
                 .findFirst()
-                .orElseThrow(() -> {
-                    logger.error("No role assigned to user ID: {}", finalUser.getUserId());
-                    return new ResourceNotFoundException("No role assigned to user");
-                });
+                .orElseThrow(() -> new ResourceNotFoundException("No role assigned to user"));
+
+        // Remove "ROLE_" prefix before putting it in the token
+        String tokenRole = rawRole.startsWith("ROLE_") ? rawRole.substring(5) : rawRole;
 
         try {
-            Map<String, List<String>> roles = Collections.singletonMap("roles", Collections.singletonList(role));
-            String token = jwtService.generateToken(user.getUserId(), identifier, roles);
+            String token = jwtService.generateToken(String.valueOf(user.getUserId()), tokenRole);
             user.setLastLogin(ZonedDateTime.now());
             userRepository.save(user);
-            logger.info("Login successful for user ID: {}, token generated", user.getUserId());
             return token;
         } catch (Exception e) {
-            logger.error("Failed to generate JWT for user ID: {} due to: {}",
-                    user.getUserId(), e.getMessage(), e);
             throw new ServiceException("JWT_GENERATION_FAILED", "Failed to generate authentication token");
         }
     }
@@ -445,7 +424,7 @@ public class AuthService implements UserDetailsService {
             logger.warn("Invalid user registration: Password is empty");
             throw new InvalidInputException("Password is required");
         }
-
+      
     }
 
     private void validateVendorDTO(VendorCreationDTO vendorDTO) {

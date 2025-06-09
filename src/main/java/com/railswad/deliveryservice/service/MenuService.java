@@ -68,7 +68,7 @@ public class MenuService {
             throw new UnauthorizedException("User must be authenticated");
         }
 
-        User user = userRepository.findByUsername(auth.getName())
+        User user = userRepository.findByEmail(auth.getName())
                 .orElseThrow(() -> {
                     logger.warn("User not found: {}", auth.getName());
                     return new ResourceNotFoundException("User not found: " + auth.getName());
@@ -190,20 +190,19 @@ public class MenuService {
 
         checkAuthorization(vendor.getVendorId());
 
-        // Verify category exists
-        menuCategoryRepository.findByVendorAndCategoryName(vendor, itemDTO.getCategoryName())
+        MenuCategory category = menuCategoryRepository.findByVendorAndCategoryName(vendor, itemDTO.getCategoryName())
                 .orElseThrow(() -> {
                     logger.warn("Menu category not found: {}", itemDTO.getCategoryName());
                     return new ResourceNotFoundException("Menu category not found: " + itemDTO.getCategoryName());
                 });
 
-        if (menuItemRepository.findByCategoryNameAndItemName(itemDTO.getCategoryName(), itemDTO.getItemName()).isPresent()) {
+        if (menuItemRepository.findByCategoryAndItemName(category, itemDTO.getItemName()).isPresent()) {
             logger.warn("Duplicate menu item '{}' in category '{}'", itemDTO.getItemName(), itemDTO.getCategoryName());
             throw new InvalidInputException("Menu item '" + itemDTO.getItemName() + "' already exists in category '" + itemDTO.getCategoryName() + "'");
         }
 
         MenuItem item = new MenuItem();
-        item.setCategoryName(itemDTO.getCategoryName());
+        item.setCategory(category);
         item.setItemName(itemDTO.getItemName());
         item.setDescription(itemDTO.getDescription());
         item.setBasePrice(itemDTO.getBasePrice());
@@ -251,20 +250,19 @@ public class MenuService {
 
         checkAuthorization(vendor.getVendorId());
 
-        // Verify category exists
-        menuCategoryRepository.findByVendorAndCategoryName(vendor, itemDTO.getCategoryName())
+        MenuCategory category = menuCategoryRepository.findByVendorAndCategoryName(vendor, itemDTO.getCategoryName())
                 .orElseThrow(() -> {
                     logger.warn("Menu category not found: {}", itemDTO.getCategoryName());
                     return new ResourceNotFoundException("Menu category not found: " + itemDTO.getCategoryName());
                 });
 
         if (!item.getItemName().equals(itemDTO.getItemName()) &&
-                menuItemRepository.findByCategoryNameAndItemName(itemDTO.getCategoryName(), itemDTO.getItemName()).isPresent()) {
+                menuItemRepository.findByCategoryAndItemName(category, itemDTO.getItemName()).isPresent()) {
             logger.warn("Duplicate menu item '{}' in category '{}'", itemDTO.getItemName(), itemDTO.getCategoryName());
             throw new InvalidInputException("Menu item '" + itemDTO.getItemName() + "' already exists in category '" + itemDTO.getCategoryName() + "'");
         }
 
-        item.setCategoryName(itemDTO.getCategoryName());
+        item.setCategory(category);
         item.setItemName(itemDTO.getItemName());
         item.setDescription(itemDTO.getDescription());
         item.setBasePrice(itemDTO.getBasePrice());
@@ -303,10 +301,10 @@ public class MenuService {
                     return new ResourceNotFoundException("Menu item not found with id: " + itemId);
                 });
 
-        Vendor vendor = vendorRepository.findById(getVendorIdForCategory(item.getCategoryName()))
+        Vendor vendor = vendorRepository.findById(item.getCategory().getVendor().getVendorId())
                 .orElseThrow(() -> {
-                    logger.warn("Vendor not found for category: {}", item.getCategoryName());
-                    return new ResourceNotFoundException("Vendor not found for category: " + item.getCategoryName());
+                    logger.warn("Vendor not found for category ID: {}", item.getCategory().getCategoryId());
+                    return new ResourceNotFoundException("Vendor not found for category ID: " + item.getCategory().getCategoryId());
                 });
 
         checkAuthorization(vendor.getVendorId());
@@ -335,7 +333,7 @@ public class MenuService {
 
         MenuItemDTO itemDTO = new MenuItemDTO();
         itemDTO.setItemId(item.getItemId());
-        itemDTO.setCategoryName(item.getCategoryName());
+        itemDTO.setCategoryName(item.getCategory().getCategoryName());
         itemDTO.setItemName(item.getItemName());
         itemDTO.setDescription(item.getDescription());
         itemDTO.setBasePrice(item.getBasePrice());
@@ -372,7 +370,7 @@ public class MenuService {
         return items.stream().map(item -> {
             MenuItemDTO itemDTO = new MenuItemDTO();
             itemDTO.setItemId(item.getItemId());
-            itemDTO.setCategoryName(item.getCategoryName());
+            itemDTO.setCategoryName(item.getCategory().getCategoryName());
             itemDTO.setItemName(item.getItemName());
             itemDTO.setDescription(item.getDescription());
             itemDTO.setBasePrice(item.getBasePrice());
@@ -446,11 +444,6 @@ public class MenuService {
             logger.info("Clearing existing menu for vendor ID: {}", vendorId);
             try {
                 List<MenuCategory> existingCategories = menuCategoryRepository.findByVendorVendorId(vendorId);
-                for (MenuCategory category : existingCategories) {
-                    List<MenuItem> items = menuItemRepository.findByCategoryName(category.getCategoryName());
-                    logger.debug("Deleting {} items in category: {}", items.size(), category.getCategoryName());
-                    menuItemRepository.deleteAll(items);
-                }
                 menuCategoryRepository.deleteAll(existingCategories);
                 logger.info("Cleared {} categories for vendor ID: {}", existingCategories.size(), vendorId);
             } catch (Exception e) {
@@ -487,13 +480,13 @@ public class MenuService {
                         return menuCategoryRepository.save(newCategory);
                     });
 
-            if (menuItemRepository.findByCategoryNameAndItemName(dto.getCategoryName(), dto.getItemName()).isPresent()) {
+            if (menuItemRepository.findByCategoryAndItemName(category, dto.getItemName()).isPresent()) {
                 logger.warn("Duplicate item '{}' in category '{}' at row {}", dto.getItemName(), dto.getCategoryName(), dtos.indexOf(dto) + 2);
                 throw new InvalidInputException("Item '" + dto.getItemName() + "' already exists in category '" + dto.getCategoryName() + "' at row " + (dtos.indexOf(dto) + 2));
             }
 
             MenuItem item = new MenuItem();
-            item.setCategoryName(dto.getCategoryName());
+            item.setCategory(category);
             item.setItemName(dto.getItemName());
             item.setDescription(dto.getDescription());
             item.setBasePrice(dto.getBasePrice());
@@ -592,7 +585,10 @@ public class MenuService {
 
     private Long getVendorIdForCategory(String categoryName) {
         MenuCategory category = menuCategoryRepository.findByCategoryName(categoryName)
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + categoryName));
+                .orElseThrow(() -> {
+                    logger.warn("Category not found: {}", categoryName);
+                    return new ResourceNotFoundException("Category not found: " + categoryName);
+                });
         return category.getVendor().getVendorId();
     }
 }

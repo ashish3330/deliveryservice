@@ -131,7 +131,6 @@ public class MenuController {
             logger.error("Vendor ID {} not found", vendorId);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Vendor ID " + vendorId + " not found");
         }
-        Vendor vendor = vendorOpt.get();
         List<MenuCategory> categories = menuCategoryRepository.findByVendorVendorId(vendorId);
         Map<String, List<MenuItemDTO>> menu = new HashMap<>();
         for (MenuCategory category : categories) {
@@ -139,8 +138,8 @@ public class MenuController {
             List<MenuItemDTO> itemDTOs = items.stream().map(item -> {
                 MenuItemDTO dto = new MenuItemDTO();
                 dto.setItemId(item.getItemId());
-                dto.setCategoryName(item.getCategoryName());
-                dto.setCategoryName(item.getCategoryName());
+                dto.setCategoryName(item.getCategory().getCategoryName());
+                dto.setCategoryName(item.getCategory().getCategoryName());
                 dto.setItemName(item.getItemName());
                 dto.setDescription(item.getDescription());
                 dto.setBasePrice(item.getBasePrice());
