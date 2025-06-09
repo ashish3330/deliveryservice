@@ -2,12 +2,14 @@ package com.railswad.deliveryservice.controller;
 
 import com.railswad.deliveryservice.dto.OtpRequestDTO;
 import com.railswad.deliveryservice.dto.UserDTO;
+import com.railswad.deliveryservice.dto.VendorCreationDTO;
 import com.railswad.deliveryservice.security.AuthRequest;
 import com.railswad.deliveryservice.security.AuthResponse;
 import com.railswad.deliveryservice.service.AuthService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -83,12 +85,12 @@ public class AuthController {
 
     @PostMapping("/create-vendor")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> createVendor(@Valid @RequestBody UserDTO userDTO, HttpServletRequest request) {
+    public ResponseEntity<?> createVendor(@Valid @RequestBody VendorCreationDTO vendorCreationDTO, HttpServletRequest request) {
         try {
             String ipAddress = request.getRemoteAddr();
             String deviceInfo = request.getHeader("User-Agent");
-            logger.info("Vendor creation request for email: {} from IP: {}", userDTO.getEmail(), ipAddress);
-            UserDTO response = authService.createVendor(userDTO, ipAddress, deviceInfo);
+            logger.info("Vendor creation request for email: {} from IP: {}", vendorCreationDTO.getEmail(), ipAddress);
+            VendorCreationDTO response = authService.createVendor(vendorCreationDTO, ipAddress, deviceInfo);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             logger.error("Invalid vendor creation request: {}", e.getMessage());
@@ -115,28 +117,8 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ErrorResponse("Logout failed"));
         }
     }
-
-    private static class ErrorResponse {
-        private String error;
-
-        public ErrorResponse(String error) {
-            this.error = error;
-        }
-
-        public String getError() {
-            return error;
-        }
+    private record ErrorResponse(String error) {
     }
-
-    private static class SuccessResponse {
-        private String message;
-
-        public SuccessResponse(String message) {
-            this.message = message;
-        }
-
-        public String getMessage() {
-            return message;
-        }
+    private record SuccessResponse(String message) {
     }
 }

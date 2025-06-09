@@ -3,6 +3,7 @@ package com.railswad.deliveryservice.service;
 import com.railswad.deliveryservice.entity.Invoice;
 import com.railswad.deliveryservice.entity.Order;
 import com.railswad.deliveryservice.entity.OrderItem;
+import com.railswad.deliveryservice.entity.PaymentStatus;
 import com.railswad.deliveryservice.repository.InvoiceRepository;
 import com.railswad.deliveryservice.repository.OrderRepository;
 import com.razorpay.RazorpayClient;
@@ -55,6 +56,10 @@ public class PaymentService {
         this.invoiceRepository = invoiceRepository;
     }
 
+    public double getGstRate() {
+        return gstRate;
+    }
+
     @Transactional
     public String createRazorpayOrder(Long orderId) throws RazorpayException {
         Order order = orderRepository.findById(orderId)
@@ -76,7 +81,8 @@ public class PaymentService {
         order.setTotalAmount(subtotal);
         order.setTaxAmount(gstAmount);
         order.setFinalAmount(finalAmount);
-        order.setPaymentStatus("PENDING");
+        order.setPaymentStatus(PaymentStatus.PENDING);
+        order.setPaymentMethod("RAZORPAY");
         orderRepository.save(order);
 
         // Create Razorpay order
@@ -113,7 +119,7 @@ public class PaymentService {
         razorpayClient.payments.capture(paymentId, captureRequest);
 
         // Update order
-        order.setPaymentStatus("CAPTURED");
+        order.setPaymentStatus(PaymentStatus.CAPTURED);
         order.setPaymentMethod("RAZORPAY");
         orderRepository.save(order);
 
@@ -121,7 +127,8 @@ public class PaymentService {
         generateAndSaveInvoice(order, paymentId);
     }
 
-    private void generateAndSaveInvoice(Order order, String paymentId) {
+    @Transactional
+    public void generateAndSaveInvoice(Order order, String paymentId) {
         if (order.getCustomer() == null || order.getVendor() == null || order.getOrderItems() == null) {
             throw new IllegalArgumentException("Order must have a customer, vendor, and items");
         }
@@ -161,6 +168,8 @@ public class PaymentService {
             contentStream.showText("Order ID: " + order.getOrderId());
             contentStream.newLineAtOffset(0, -15);
             contentStream.showText("Payment ID: " + paymentId);
+            contentStream.newLineAtOffset(0, -15);
+            contentStream.showText("Payment Method: " + order.getPaymentMethod());
             yOffset -= 50;
             contentStream.newLineAtOffset(0, -20);
             contentStream.showText("Items:");

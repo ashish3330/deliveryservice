@@ -29,12 +29,14 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/register", "/api/auth/verify-otp", "/api/auth/login").permitAll()
+                        .requestMatchers("/api/auth/register", "/api/auth/verify-otp", "/api/auth/login"
+                                ,"/api/auth/logout","/api/stations/**","/api/menu/**","/api/vendors/**").permitAll()
                         .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/vendor/**").hasRole("VENDOR")
-                        .requestMatchers("/api/user/**").hasRole("USER")
-                        .requestMatchers("/api/payments/invoice/**").hasAnyRole("ADMIN", "VENDOR", "USER")
+//                        .requestMatchers("/api/admin/**").hasRole("ROLE_ADMIN")
+//                        .requestMatchers("/api/menu/**").hasAnyRole("ADMIN", "VENDOR", "USER")
+//                        .requestMatchers("/api/stations/**").hasAnyRole("ROLE_ADMIN", "ROLE_VENDOR", "ROLE_USER")
+//                        .requestMatchers("/api/user/**").hasRole("ROLE_USER")
+//                        .requestMatchers("/api/payments/invoice/**").hasAnyRole("ADMIN", "VENDOR", "USER")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

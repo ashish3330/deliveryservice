@@ -1,8 +1,8 @@
 package com.railswad.deliveryservice.entity;
 
-
 import jakarta.persistence.*;
 import lombok.Data;
+
 import java.time.ZonedDateTime;
 
 @Entity
@@ -17,7 +17,8 @@ public class OrderTracking {
     @JoinColumn(name = "order_id")
     private Order order;
 
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private OrderStatus status;
 
     private String remarks;
 

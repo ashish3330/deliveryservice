@@ -42,8 +42,9 @@ public class Order {
     @Column(name = "delivery_time", nullable = false)
     private ZonedDateTime deliveryTime;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "order_status", nullable = false)
-    private String orderStatus;
+    private OrderStatus orderStatus;
 
     @Column(name = "total_amount", nullable = false)
     private Double totalAmount;
@@ -60,10 +61,11 @@ public class Order {
     @Column(name = "final_amount", nullable = false)
     private Double finalAmount;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "payment_status", nullable = false)
-    private String paymentStatus;
+    private PaymentStatus paymentStatus;
 
-    @Column(name = "payment_method")
+    @Column(name = "payment_method", nullable = false)
     private String paymentMethod;
 
     @Column(name = "created_at")

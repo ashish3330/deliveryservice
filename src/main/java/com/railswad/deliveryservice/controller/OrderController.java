@@ -1,6 +1,7 @@
 package com.railswad.deliveryservice.controller;
 
 import com.railswad.deliveryservice.dto.OrderDTO;
+import com.railswad.deliveryservice.entity.OrderStatus;
 import com.railswad.deliveryservice.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -24,19 +25,32 @@ public class OrderController {
 
     @PutMapping("/{orderId}/status")
     @PreAuthorize("hasRole('VENDOR')")
-    public ResponseEntity<OrderDTO> updateOrderStatus(@PathVariable Long orderId,
-                                                      @RequestParam String status,
-                                                      @RequestParam String remarks,
-                                                      @RequestParam Long updatedById) {
+    public ResponseEntity<OrderDTO> updateOrderStatus(
+            @PathVariable Long orderId,
+            @RequestParam OrderStatus status,
+            @RequestParam String remarks,
+            @RequestParam Long updatedById) {
         return ResponseEntity.ok(orderService.updateOrderStatus(orderId, status, remarks, updatedById));
     }
 
+    @PostMapping("/{orderId}/cod/complete")
+    @PreAuthorize("hasRole('VENDOR')")
+    public ResponseEntity<String> markCodPaymentCompleted(
+            @PathVariable Long orderId,
+            @RequestParam Long updatedById,
+            @RequestParam String remarks) {
+        orderService.markCodPaymentCompleted(orderId, updatedById, remarks);
+        return ResponseEntity.ok("COD payment marked as completed for order ID: " + orderId);
+    }
+
     @GetMapping("/{orderId}")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'VENDOR', 'ADMIN')")
     public ResponseEntity<OrderDTO> getOrderById(@PathVariable Long orderId) {
         return ResponseEntity.ok(orderService.getOrderById(orderId));
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<OrderDTO>> getAllOrders(Pageable pageable) {
         return ResponseEntity.ok(orderService.getAllOrders(pageable));
     }

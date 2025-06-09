@@ -1,3 +1,5 @@
 databaseChangeLog:
   - include:
       file: db/changelog/changes/v2_init_roles_table.sql
+  - include:
+      file: db/changelog/changes/v4_init_files_table.sql

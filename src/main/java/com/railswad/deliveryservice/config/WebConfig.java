@@ -1,5 +1,6 @@
 package com.railswad.deliveryservice.config;
 
+import org.jetbrains.annotations.NotNull;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
@@ -12,14 +13,12 @@ public class WebConfig {
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
-            public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/api/**")  // More specific mapping recommended
-                        .allowedOrigins("http://localhost:5173")
+            public void addCorsMappings(@NotNull CorsRegistry registry) {
+                registry.addMapping("/**")
+                        .allowedOrigins("http://localhost:5173")  // allow frontend
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
-                        .exposedHeaders("Authorization")  // Expose any custom headers
-                        .allowCredentials(true)
-                        .maxAge(3600);  // Cache preflight response
+                        .allowCredentials(true);  // if you use cookies or authorization headers
             }
         };
     }

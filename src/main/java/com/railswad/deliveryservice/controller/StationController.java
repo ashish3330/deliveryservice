@@ -17,7 +17,6 @@ public class StationController {
     private StationService stationService;
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<StationDTO> createStation(@RequestBody StationDTO stationDTO) {
         return ResponseEntity.ok(stationService.createStation(stationDTO));
     }

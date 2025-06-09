@@ -49,8 +49,9 @@ public class Invoice {
     @Column(name = "total_amount", nullable = false)
     private double totalAmount;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "payment_status", nullable = false)
-    private String paymentStatus;
+    private PaymentStatus paymentStatus;
 
     @Column(name = "invoice_data", nullable = false)
     private byte[] invoiceData;

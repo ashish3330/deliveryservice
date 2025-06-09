@@ -28,14 +28,14 @@ public class PaymentController {
     }
 
     @PostMapping("/create-order/{orderId}")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<String> createOrder(@PathVariable Long orderId) throws Exception {
         String razorpayOrderId = paymentService.createRazorpayOrder(orderId);
         return ResponseEntity.ok(razorpayOrderId);
     }
 
     @PostMapping("/verify-payment/{orderId}")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<String> verifyPayment(
             @PathVariable Long orderId,
             @RequestBody Map<String, String> paymentDetails) throws Exception {
@@ -48,7 +48,7 @@ public class PaymentController {
     }
 
     @GetMapping("/invoice/{orderId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR', 'USER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR', 'CUSTOMER')")
     public ResponseEntity<byte[]> getInvoice(@PathVariable Long orderId) {
         Invoice invoice = invoiceRepository.findByOrderOrderId(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found"));
@@ -56,13 +56,12 @@ public class PaymentController {
         // Role-based access check
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String role = auth.getAuthorities().iterator().next().getAuthority();
-        if ("ROLE_USER".equals(role) && !invoice.getOrder().getCustomer().getEmail().equals(auth.getName())) {
+        if ("ROLE_CUSTOMER".equals(role) && !invoice.getOrder().getCustomer().getEmail().equals(auth.getName())) {
             throw new AccessDeniedException("Access denied");
         }
         if ("ROLE_VENDOR".equals(role) && !invoice.getOrder().getVendor().getUser().getUsername().equals(auth.getName())) {
             throw new AccessDeniedException("Access denied");
         }
-
         return ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename=invoice-" + invoice.getInvoiceNumber() + ".pdf")
                 .contentType(MediaType.APPLICATION_PDF)
