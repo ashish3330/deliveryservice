@@ -1,6 +1,7 @@
 package com.railswad.deliveryservice.controller;
 
 import com.railswad.deliveryservice.dto.OrderDTO;
+import com.railswad.deliveryservice.dto.OrderFilterDTO;
 import com.railswad.deliveryservice.entity.OrderStatus;
 import com.railswad.deliveryservice.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,7 +52,7 @@ public class OrderController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Page<OrderDTO>> getAllOrders(Pageable pageable) {
-        return ResponseEntity.ok(orderService.getAllOrders(pageable));
+    public ResponseEntity<Page<OrderDTO>> getAllOrders(Pageable pageable,OrderFilterDTO orderFilterDTO) {
+        return ResponseEntity.ok(orderService.getAllOrders(orderFilterDTO,pageable));
     }
 }

@@ -30,13 +30,13 @@ public class JwtService {
     @Value("${jwt.refresh.expiration}")
     private long refreshTokenExpiration;
 
-    public String generateToken(Long userId, String email, Map<String, List<String>> roles) {
-        logger.info("Generating access token for userId: {}, email: {}", userId, email);
-        validateGenerateTokenInputs(userId, email, roles);
+    public String generateToken(Long userId, String identifier, Map<String, List<String>> roles) {
+        logger.info("Generating access token for userId: {}, identifier: {}", userId, identifier);
+        validateGenerateTokenInputs(userId, identifier, roles);
 
         try {
             return Jwts.builder()
-                    .setSubject(email)
+                    .setSubject(identifier)
                     .claim("userId", userId)
                     .claim("roles", roles)
                     .setIssuedAt(new Date())
@@ -110,8 +110,8 @@ public class JwtService {
         }
     }
 
-    public String getEmailFromToken(String token) {
-        logger.debug("Extracting email from token");
+    public String getIdentifierFromToken(String token) {
+        logger.debug("Extracting identifier from token");
         validateTokenInput(token);
 
         try {
@@ -122,8 +122,8 @@ public class JwtService {
                     .getBody()
                     .getSubject();
         } catch (Exception e) {
-            logger.error("Failed to extract email from token: {}", e.getMessage(), e);
-            throw new ServiceException("TOKEN_PARSING_FAILED", "Failed to extract email from token");
+            logger.error("Failed to extract identifier from token: {}", e.getMessage(), e);
+            throw new ServiceException("TOKEN_PARSING_FAILED", "Failed to extract identifier from token");
         }
     }
 
@@ -183,14 +183,14 @@ public class JwtService {
         }
     }
 
-    private void validateGenerateTokenInputs(Long userId, String email, Map<String, List<String>> roles) {
+    private void validateGenerateTokenInputs(Long userId, String identifier, Map<String, List<String>> roles) {
         if (userId == null) {
             logger.warn("Invalid token generation: userId is null");
             throw new InvalidInputException("User ID is required");
         }
-        if (!StringUtils.hasText(email)) {
-            logger.warn("Invalid token generation: email is empty");
-            throw new InvalidInputException("Email is required");
+        if (!StringUtils.hasText(identifier)) {
+            logger.warn("Invalid token generation: identifier is empty");
+            throw new InvalidInputException("Identifier is required");
         }
         if (roles == null || roles.isEmpty()) {
             logger.warn("Invalid token generation: roles are empty");

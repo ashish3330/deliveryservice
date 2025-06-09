@@ -4,14 +4,14 @@ import com.railswad.deliveryservice.dto.*;
 import com.railswad.deliveryservice.entity.Order;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.ZonedDateTime;
 import java.util.List;
 
-public interface OrderRepository extends JpaRepository<Order, Long> {
-
+public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecificationExecutor<Order> {
     @Query("SELECT new com.railswad.deliveryservice.dto.VendorSalesSummaryDTO(" +
             "v.vendorId, v.businessName, COUNT(o), SUM(o.finalAmount), AVG(o.finalAmount)) " +
             "FROM Order o JOIN o.vendor v " +

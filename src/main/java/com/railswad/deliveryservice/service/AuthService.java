@@ -63,18 +63,38 @@ public class AuthService implements UserDetailsService {
 
     @Transactional
     public UserDTO registerUser(UserDTO userDTO, String ipAddress, String deviceInfo) {
-        logger.info("Attempting to register user with email: {} and role: {}", userDTO.getEmail(), userDTO.getRole());
+        logger.info("Attempting to register user with email: {} or phoneNumber: {} and role: {}",
+                userDTO.getEmail(), userDTO.getPhoneNumber(), userDTO.getRole());
+
+        // Validate that exactly one of email or phoneNumber is provided
+        if ((userDTO.getEmail() == null || userDTO.getEmail().isEmpty()) &&
+                (userDTO.getPhoneNumber() == null || userDTO.getPhoneNumber().isEmpty())) {
+            logger.warn("Registration failed: Either email or phoneNumber is required");
+            throw new InvalidInputException("Either email or phoneNumber is required");
+        }
+        if (userDTO.getEmail() != null && !userDTO.getEmail().isEmpty() &&
+                userDTO.getPhoneNumber() != null && !userDTO.getPhoneNumber().isEmpty()) {
+            logger.warn("Registration failed: Only one of email or phoneNumber should be provided");
+            throw new InvalidInputException("Only one of email or phoneNumber should be provided");
+        }
         validateUserDTO(userDTO);
 
-        if (userRepository.findByEmail(userDTO.getEmail()).isPresent()) {
+        // Check for existing user by email or phoneNumber
+        if (userDTO.getEmail() != null && !userDTO.getEmail().isEmpty() &&
+                userRepository.findByEmail(userDTO.getEmail()).isPresent()) {
             logger.warn("Registration failed: User already exists with email: {}", userDTO.getEmail());
             throw new UserAlreadyExistsException("User already exists with email: " + userDTO.getEmail());
+        }
+        if (userDTO.getPhoneNumber() != null && !userDTO.getPhoneNumber().isEmpty() &&
+                userRepository.findByPhone(userDTO.getPhoneNumber()).isPresent()) {
+            logger.warn("Registration failed: User already exists with phoneNumber: {}", userDTO.getPhoneNumber());
+            throw new UserAlreadyExistsException("User already exists with phoneNumber: " + userDTO.getPhoneNumber());
         }
 
         User user = new User();
         user.setEmail(userDTO.getEmail());
         user.setUsername(userDTO.getUsername());
-        user.setPhone(userDTO.getPhone());
+        user.setPhone(userDTO.getPhoneNumber());
         user.setPasswordHash(passwordEncoder.encode(userDTO.getPassword()));
         user.setSalt(generateSalt());
         user.setVerified(false);
@@ -86,7 +106,8 @@ public class AuthService implements UserDetailsService {
             user = userRepository.save(user);
             logger.debug("User saved with ID: {}", user.getUserId());
         } catch (Exception e) {
-            logger.error("Failed to save user with email: {} due to: {}", userDTO.getEmail(), e.getMessage(), e);
+            logger.error("Failed to save user with email: {} or phoneNumber: {} due to: {}",
+                    userDTO.getEmail(), userDTO.getPhoneNumber(), e.getMessage(), e);
             throw new ServiceException("USER_SAVE_FAILED", "Failed to register user due to database error");
         }
 
@@ -107,7 +128,8 @@ public class AuthService implements UserDetailsService {
             userRole = userRoleRepository.save(userRole);
             logger.debug("Assigned role {} to user ID: {}", roleName, user.getUserId());
         } catch (Exception e) {
-            logger.error("Failed to assign role {} to user ID: {} due to: {}", roleName, user.getUserId(), e.getMessage(), e);
+            logger.error("Failed to assign role {} to user ID: {} due to: {}",
+                    roleName, user.getUserId(), e.getMessage(), e);
             throw new ServiceException("ROLE_ASSIGNMENT_FAILED", "Failed to assign role to user");
         }
 
@@ -119,7 +141,8 @@ public class AuthService implements UserDetailsService {
             user = userRepository.save(user);
             logger.debug("Updated user roles for user ID: {}", user.getUserId());
         } catch (Exception e) {
-            logger.error("Failed to update user roles for user ID: {} due to: {}", user.getUserId(), e.getMessage(), e);
+            logger.error("Failed to update user roles for user ID: {} due to: {}",
+                    user.getUserId(), e.getMessage(), e);
             throw new ServiceException("USER_UPDATE_FAILED", "Failed to update user roles");
         }
 
@@ -127,40 +150,69 @@ public class AuthService implements UserDetailsService {
             otpService.generateAndSendOtp(user.getUserId(), ipAddress, deviceInfo);
             logger.info("OTP generated and sent for user ID: {}", user.getUserId());
         } catch (Exception e) {
-            logger.error("Failed to generate OTP for user ID: {} due to: {}", user.getUserId(), e.getMessage(), e);
+            logger.error("Failed to generate OTP for user ID: {} due to: {}",
+                    user.getUserId(), e.getMessage(), e);
             throw new ServiceException("OTP_GENERATION_FAILED", "Failed to generate OTP");
         }
 
         UserDTO responseDTO = new UserDTO();
         responseDTO.setEmail(user.getEmail());
         responseDTO.setUsername(user.getUsername());
-        responseDTO.setPhone(user.getPhone());
+        responseDTO.setPhoneNumber(user.getPhone());
         responseDTO.setRole(roleName);
-        logger.info("User registered successfully with email: {}", userDTO.getEmail());
+        logger.info("User registered successfully with email: {} or phoneNumber: {}",
+                userDTO.getEmail(), userDTO.getPhoneNumber());
         return responseDTO;
     }
 
     @Transactional
     public UserDTO verifyOtp(OtpRequestDTO otpRequestDTO, String ipAddress) {
-        logger.info("Verifying OTP for email: {}", otpRequestDTO.getEmail());
-        if (!StringUtils.hasText(otpRequestDTO.getEmail()) || !StringUtils.hasText(otpRequestDTO.getOtpCode())) {
-            logger.warn("Invalid OTP verification request: email or OTP code is empty");
-            throw new InvalidInputException("Email and OTP code are required");
+        logger.info("Verifying OTP for email: {} or phoneNumber: {}",
+                otpRequestDTO.getEmail(), otpRequestDTO.getPhoneNumber());
+
+        // Validate that exactly one of email or phoneNumber is provided
+        if ((otpRequestDTO.getEmail() == null || otpRequestDTO.getEmail().isEmpty()) &&
+                (otpRequestDTO.getPhoneNumber() == null || otpRequestDTO.getPhoneNumber().isEmpty())) {
+            logger.warn("Invalid OTP verification request: Either email or phoneNumber is required");
+            throw new InvalidInputException("Either email or phoneNumber is required");
+        }
+        if (otpRequestDTO.getEmail() != null && !otpRequestDTO.getEmail().isEmpty() &&
+                otpRequestDTO.getPhoneNumber() != null && !otpRequestDTO.getPhoneNumber().isEmpty()) {
+            logger.warn("Invalid OTP verification request: Only one of email or phoneNumber should be provided");
+            throw new InvalidInputException("Only one of email or phoneNumber should be provided");
+        }
+        if (!StringUtils.hasText(otpRequestDTO.getOtp())) {
+            logger.warn("Invalid OTP verification request: OTP code is empty");
+            throw new InvalidInputException("OTP code is required");
         }
 
-        User user = userRepository.findByEmail(otpRequestDTO.getEmail())
-                .orElseThrow(() -> {
-                    logger.warn("User not found for OTP verification with email: {}", otpRequestDTO.getEmail());
-                    return new ResourceNotFoundException("User not found with email: " + otpRequestDTO.getEmail());
-                });
+        User user = null;
+        if (otpRequestDTO.getEmail() != null && !otpRequestDTO.getEmail().isEmpty()) {
+            user = userRepository.findByEmail(otpRequestDTO.getEmail())
+                    .orElseThrow(() -> {
+                        logger.warn("User not found for OTP verification with email: {}",
+                                otpRequestDTO.getEmail());
+                        return new ResourceNotFoundException("User not found with email: " +
+                                otpRequestDTO.getEmail());
+                    });
+        } else {
+            user = userRepository.findByPhone(otpRequestDTO.getPhoneNumber())
+                    .orElseThrow(() -> {
+                        logger.warn("User not found for OTP verification with phoneNumber: {}",
+                                otpRequestDTO.getPhoneNumber());
+                        return new ResourceNotFoundException("User not found with phoneNumber: " +
+                                otpRequestDTO.getPhoneNumber());
+                    });
+        }
 
         try {
-            if (!otpService.verifyOtp(user.getUserId(), otpRequestDTO.getOtpCode(), ipAddress)) {
+            if (!otpService.verifyOtp(user.getUserId(), otpRequestDTO.getOtp(), ipAddress)) {
                 logger.warn("Invalid or expired OTP for user ID: {}", user.getUserId());
                 throw new InvalidInputException("Invalid or expired OTP");
             }
         } catch (Exception e) {
-            logger.error("OTP verification failed for user ID: {} due to: {}", user.getUserId(), e.getMessage(), e);
+            logger.error("OTP verification failed for user ID: {} due to: {}",
+                    user.getUserId(), e.getMessage(), e);
             throw new ServiceException("OTP_VERIFICATION_FAILED", "Failed to verify OTP");
         }
 
@@ -170,7 +222,8 @@ public class AuthService implements UserDetailsService {
             userRepository.save(user);
             logger.debug("User ID: {} marked as verified", user.getUserId());
         } catch (Exception e) {
-            logger.error("Failed to update user verification status for user ID: {} due to: {}", user.getUserId(), e.getMessage(), e);
+            logger.error("Failed to update user verification status for user ID: {} due to: {}",
+                    user.getUserId(), e.getMessage(), e);
             throw new ServiceException("USER_UPDATE_FAILED", "Failed to update user verification status");
         }
 
@@ -181,61 +234,73 @@ public class AuthService implements UserDetailsService {
         UserDTO responseDTO = new UserDTO();
         responseDTO.setEmail(user.getEmail());
         responseDTO.setUsername(user.getUsername());
-        responseDTO.setPhone(user.getPhone());
+        responseDTO.setPhoneNumber(user.getPhone());
         responseDTO.setRole(roleName);
         logger.info("OTP verified successfully for user ID: {}", user.getUserId());
         return responseDTO;
     }
 
     @Transactional
-    public String login(String username, String password) {
-        logger.info("Attempting login for user: {}", username);
-        if (!StringUtils.hasText(username) || !StringUtils.hasText(password)) {
-            logger.warn("Login failed: Username or password is empty");
-            throw new InvalidInputException("Username and password are required");
+    public String login(String identifier, String password) {
+        logger.info("Attempting login for identifier: {}", identifier);
+        if (!StringUtils.hasText(identifier) || !StringUtils.hasText(password)) {
+            logger.warn("Login failed: Identifier or password is empty");
+            throw new InvalidInputException("Identifier and password are required");
+        }
+
+        User user = null;
+        if (identifier.contains("@")) {
+            user = userRepository.findByEmail(identifier)
+                    .orElseThrow(() -> {
+                        logger.warn("User not found during login: {}", identifier);
+                        return new UsernameNotFoundException("User not found: " + identifier);
+                    });
+        } else {
+            user = userRepository.findByPhone(identifier)
+                    .orElseThrow(() -> {
+                        logger.warn("User not found during login: {}", identifier);
+                        return new UsernameNotFoundException("User not found: " + identifier);
+                    });
         }
 
         try {
             Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(username, password)
+                    new UsernamePasswordAuthenticationToken(identifier, password)
             );
-            logger.debug("Authentication successful for user: {}", username);
+            logger.debug("Authentication successful for identifier: {}", identifier);
         } catch (BadCredentialsException e) {
-            logger.warn("Login failed for user: {} due to invalid credentials", username);
-            throw new InvalidCredentialsException("Invalid username or password");
+            logger.warn("Login failed for identifier: {} due to invalid credentials", identifier);
+            throw new InvalidCredentialsException("Invalid identifier or password");
         } catch (Exception e) {
-            logger.error("Authentication failed for user: {} due to: {}", username, e.getMessage(), e);
+            logger.error("Authentication failed for identifier: {} due to: {}",
+                    identifier, e.getMessage(), e);
             throw new ServiceException("AUTHENTICATION_FAILED", "Authentication failed due to internal error");
         }
-
-        User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> {
-                    logger.warn("User not found during login: {}", username);
-                    return new UsernameNotFoundException("User not found: " + username);
-                });
 
         if (!user.isVerified()) {
             logger.warn("Login failed for user ID: {}: Account not verified", user.getUserId());
             throw new UnauthorizedException("Account not verified");
         }
 
+        User finalUser = user;
         String role = user.getUserRoles().stream()
                 .map(userRole -> userRole.getRole().getName())
                 .findFirst()
                 .orElseThrow(() -> {
-                    logger.error("No role assigned to user ID: {}", user.getUserId());
+                    logger.error("No role assigned to user ID: {}", finalUser.getUserId());
                     return new ResourceNotFoundException("No role assigned to user");
                 });
 
         try {
             Map<String, List<String>> roles = Collections.singletonMap("roles", Collections.singletonList(role));
-            String token = jwtService.generateToken(user.getUserId(), username, roles);
+            String token = jwtService.generateToken(user.getUserId(), identifier, roles);
             user.setLastLogin(ZonedDateTime.now());
             userRepository.save(user);
             logger.info("Login successful for user ID: {}, token generated", user.getUserId());
             return token;
         } catch (Exception e) {
-            logger.error("Failed to generate JWT for user ID: {} due to: {}", user.getUserId(), e.getMessage(), e);
+            logger.error("Failed to generate JWT for user ID: {} due to: {}",
+                    user.getUserId(), e.getMessage(), e);
             throw new ServiceException("JWT_GENERATION_FAILED", "Failed to generate authentication token");
         }
     }
@@ -380,7 +445,7 @@ public class AuthService implements UserDetailsService {
             logger.warn("Invalid user registration: Password is empty");
             throw new InvalidInputException("Password is required");
         }
-        if (!StringUtils.hasText(userDTO.getPhone())) {
+        if (!StringUtils.hasText(userDTO.getPhoneNumber())) {
             logger.warn("Invalid user registration: Phone is empty");
             throw new InvalidInputException("Phone is required");
         }

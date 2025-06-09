@@ -9,7 +9,6 @@ import com.railswad.deliveryservice.service.AuthService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,7 +35,8 @@ public class AuthController {
         try {
             String ipAddress = request.getRemoteAddr();
             String deviceInfo = request.getHeader("User-Agent");
-            logger.info("Register request for email: {} from IP: {}", userDTO.getEmail(), ipAddress);
+            logger.info("Register request for email: {} or phoneNumber: {} from IP: {}",
+                    userDTO.getEmail(), userDTO.getPhoneNumber(), ipAddress);
             UserDTO response = authService.registerUser(userDTO, ipAddress, deviceInfo);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
@@ -52,7 +52,8 @@ public class AuthController {
     public ResponseEntity<?> verifyOtp(@Valid @RequestBody OtpRequestDTO otpRequestDTO, HttpServletRequest request) {
         try {
             String ipAddress = request.getRemoteAddr();
-            logger.info("OTP verification request for email: {} from IP: {}", otpRequestDTO.getEmail(), ipAddress);
+            logger.info("OTP verification request for email: {} or phoneNumber: {} from IP: {}",
+                    otpRequestDTO.getEmail(), otpRequestDTO.getPhoneNumber(), ipAddress);
             UserDTO response = authService.verifyOtp(otpRequestDTO, ipAddress);
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
@@ -64,8 +65,8 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody AuthRequest authRequest, HttpServletResponse response) {
         try {
-            logger.info("Login request for username: {}", authRequest.getUsername());
-            String token = authService.login(authRequest.getUsername(), authRequest.getPassword());
+            logger.info("Login request for identifier: {}", authRequest.getIdentifier());
+            String token = authService.login(authRequest.getIdentifier(), authRequest.getPassword());
             AuthResponse authResponse = new AuthResponse();
             authResponse.setToken(token);
 
@@ -117,8 +118,7 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ErrorResponse("Logout failed"));
         }
     }
-    private record ErrorResponse(String error) {
-    }
-    private record SuccessResponse(String message) {
-    }
+
+    private record ErrorResponse(String error) {}
+    private record SuccessResponse(String message) {}
 }

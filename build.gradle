@@ -36,7 +36,10 @@ dependencies {
 	implementation 'org.modelmapper:modelmapper:3.2.0'
 	implementation 'com.sun.mail:jakarta.mail:2.0.1'
 	implementation("com.itextpdf:itext7-core:8.0.3") // Modern PDF generation
-	implementation("org.apache.pdfbox:pdfbox:3.0.1") // PD manipulation
+	implementation("org.apache.pdfbox:pdfbox:3.0.1")
+	implementation 'org.hibernate.validator:hibernate-validator:8.0.1.Final' // Use latest version
+	implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
+	implementation 'org.glassfish:jakarta.el:4.0.2' // Required for script ev/ PD manipulation
 	// Razorpay SDK
 	implementation "com.razorpay:razorpay-java:1.4.5"  // Official Java SDK
 	// Additional helpful libraries
