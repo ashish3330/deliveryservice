@@ -1,4 +1,4 @@
-CREATE TABLE files (
+CREATE TABLE IF NOT EXISTS public.files (
     id SERIAL PRIMARY KEY,
     original_file_name VARCHAR(255) NOT NULL,
     system_file_name VARCHAR(255) NOT NULL,

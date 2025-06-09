@@ -2,6 +2,7 @@ package com.railswad.deliveryservice.controller;
 
 import com.railswad.deliveryservice.dto.OtpRequestDTO;
 import com.railswad.deliveryservice.dto.UserDTO;
+import com.railswad.deliveryservice.dto.UserResponseDTO;
 import com.railswad.deliveryservice.dto.VendorCreationDTO;
 import com.railswad.deliveryservice.security.AuthRequest;
 import com.railswad.deliveryservice.security.AuthResponse;
@@ -38,7 +39,13 @@ public class AuthController {
             logger.info("Register request for email: {} or phoneNumber: {} from IP: {}",
                     userDTO.getEmail(), userDTO.getPhoneNumber(), ipAddress);
             UserDTO response = authService.registerUser(userDTO, ipAddress, deviceInfo);
-            return ResponseEntity.ok(response);
+            UserResponseDTO userResponseDTO = new UserResponseDTO();
+            userResponseDTO.setPhoneNumber(userDTO.getPhoneNumber());
+            userResponseDTO.setEmail(userDTO.getEmail());
+            userResponseDTO.setUsername(userDTO.getUsername());
+
+
+            return ResponseEntity.ok(userResponseDTO);
         } catch (IllegalArgumentException e) {
             logger.error("Invalid registration request: {}", e.getMessage());
             return ResponseEntity.badRequest().body(new ErrorResponse("Invalid input: " + e.getMessage()));
@@ -55,7 +62,7 @@ public class AuthController {
             logger.info("OTP verification request for email: {} or phoneNumber: {} from IP: {}",
                     otpRequestDTO.getEmail(), otpRequestDTO.getPhoneNumber(), ipAddress);
             UserDTO response = authService.verifyOtp(otpRequestDTO, ipAddress);
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok("OTP verified successfully");
         } catch (RuntimeException e) {
             logger.error("OTP verification failed: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponse(e.getMessage()));

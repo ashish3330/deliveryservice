@@ -1,16 +1,16 @@
 package com.railswad.deliveryservice.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 @Data
-public class OtpRequestDTO {
+public class UserResponseDTO {
+    @Email(message = "Invalid email format", regexp = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")
     private String email;
-
     @Pattern(regexp = "^\\+?[1-9]\\d{1,14}$", message = "Invalid phone number format")
     private String phoneNumber;
-
-    @NotBlank(message = "OTP is required")
-    private String otp;
+    private String username;
+    // Role to be assigned during creation
 }

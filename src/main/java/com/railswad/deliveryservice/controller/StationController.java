@@ -5,6 +5,7 @@ import com.railswad.deliveryservice.service.StationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -39,8 +40,19 @@ public class StationController {
         return ResponseEntity.ok(stationService.getStationById(stationId));
     }
 
+//    @GetMapping
+//    public ResponseEntity<Page<StationDTO>> getAllStations(Pageable pageable) {
+//        return ResponseEntity.ok(stationService.getAllStations(pageable));
+//    }
+
+
     @GetMapping
-    public ResponseEntity<Page<StationDTO>> getAllStations(Pageable pageable) {
-        return ResponseEntity.ok(stationService.getAllStations(pageable));
+    public ResponseEntity<Page<StationDTO>> getStations(
+            @RequestParam(required = false) String stationName,
+            @RequestParam(required = false) String stationCode,
+            @RequestParam(required = false) String state,
+            @PageableDefault(size = 10, sort = "stationName") Pageable pageable) {
+        Page<StationDTO> stations = stationService.findStationsByFilters(stationName, stationCode, state, pageable);
+        return ResponseEntity.ok(stations);
     }
 }

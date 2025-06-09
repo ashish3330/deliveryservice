@@ -437,7 +437,7 @@ public class AuthService implements UserDetailsService {
             logger.warn("Invalid user registration: Email is empty");
             throw new InvalidInputException("Email is required");
         }
-        if (!StringUtils.hasText(userDTO.getUsername())) {
+        if (!StringUtils.hasText(userDTO.getUsername()) && !StringUtils.hasText(userDTO.getPhoneNumber())) {
             logger.warn("Invalid user registration: Username is empty");
             throw new InvalidInputException("Username is required");
         }
@@ -445,10 +445,7 @@ public class AuthService implements UserDetailsService {
             logger.warn("Invalid user registration: Password is empty");
             throw new InvalidInputException("Password is required");
         }
-        if (!StringUtils.hasText(userDTO.getPhoneNumber())) {
-            logger.warn("Invalid user registration: Phone is empty");
-            throw new InvalidInputException("Phone is required");
-        }
+
     }
 
     private void validateVendorDTO(VendorCreationDTO vendorDTO) {
