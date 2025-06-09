@@ -17,7 +17,8 @@ public interface MenuItemRepository extends JpaRepository<MenuItem, Long> {
             "(m.availableStartTime <= :currentTime AND m.availableEndTime >= :currentTime))")
     List<MenuItem> findAvailableItemsByVendor(Long vendorId, LocalTime currentTime);
 
-    Optional<MenuItem> findByCategoryAndItemName(MenuCategory category, String itemName);
+    Optional<MenuItem> findByCategoryNameAndItemName(String categoryName, String itemName);
+    List<MenuItem> findByCategory(MenuCategory category);
+    List<MenuItem> findByCategoryName(String categoryName);
 
-    List<MenuItem> findByCategory(MenuCategory category); // Added for clearing existing items
 }

@@ -8,10 +8,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-
+import java.util.Optional;
 @Repository
 public interface MenuCategoryRepository extends JpaRepository<MenuCategory, Long> {
-    List<MenuCategory> findByVendorVendorId(Long vendorId);
     Page<MenuCategory> findByVendorVendorId(Long vendorId, Pageable pageable);
-    MenuCategory findByVendorAndCategoryName(Vendor vendor, String categoryName);
+    List<MenuCategory> findByVendorVendorId(Long vendorId);
+    Optional<MenuCategory> findByVendorAndCategoryName(Vendor vendor, String categoryName);
+    Optional<MenuCategory> findByCategoryName(String categoryName);
 }

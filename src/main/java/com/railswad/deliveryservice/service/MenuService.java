@@ -1,4 +1,5 @@
 package com.railswad.deliveryservice.service;
+
 import com.railswad.deliveryservice.dto.MenuCategoryDTO;
 import com.railswad.deliveryservice.dto.MenuItemDTO;
 import com.railswad.deliveryservice.entity.MenuCategory;
@@ -178,27 +179,35 @@ public class MenuService {
 
     @Transactional
     public MenuItemDTO createMenuItem(MenuItemDTO itemDTO) {
-        logger.info("Creating menu item for category ID: {}", itemDTO.getCategoryId());
+        logger.info("Creating menu item for category: {}", itemDTO.getCategoryName());
         validateMenuItemDTO(itemDTO);
 
-        MenuCategory category = menuCategoryRepository.findById(itemDTO.getCategoryId())
+        Vendor vendor = vendorRepository.findById(getVendorIdForCategory(itemDTO.getCategoryName()))
                 .orElseThrow(() -> {
-                    logger.warn("Menu category not found with id: {}", itemDTO.getCategoryId());
-                    return new ResourceNotFoundException("Menu category not found with id: " + itemDTO.getCategoryId());
+                    logger.warn("Vendor not found for category: {}", itemDTO.getCategoryName());
+                    return new ResourceNotFoundException("Vendor not found for category: " + itemDTO.getCategoryName());
                 });
 
-        checkAuthorization(category.getVendor().getVendorId());
+        checkAuthorization(vendor.getVendorId());
 
-        if (menuItemRepository.findByCategoryAndItemName(category, itemDTO.getItemName()).isPresent()) {
-            logger.warn("Duplicate menu item '{}' in category ID: {}", itemDTO.getItemName(), itemDTO.getCategoryId());
-            throw new InvalidInputException("Menu item '" + itemDTO.getItemName() + "' already exists in this category");
+        // Verify category exists
+        menuCategoryRepository.findByVendorAndCategoryName(vendor, itemDTO.getCategoryName())
+                .orElseThrow(() -> {
+                    logger.warn("Menu category not found: {}", itemDTO.getCategoryName());
+                    return new ResourceNotFoundException("Menu category not found: " + itemDTO.getCategoryName());
+                });
+
+        if (menuItemRepository.findByCategoryNameAndItemName(itemDTO.getCategoryName(), itemDTO.getItemName()).isPresent()) {
+            logger.warn("Duplicate menu item '{}' in category '{}'", itemDTO.getItemName(), itemDTO.getCategoryName());
+            throw new InvalidInputException("Menu item '" + itemDTO.getItemName() + "' already exists in category '" + itemDTO.getCategoryName() + "'");
         }
 
         MenuItem item = new MenuItem();
-        item.setCategory(category);
+        item.setCategoryName(itemDTO.getCategoryName());
         item.setItemName(itemDTO.getItemName());
         item.setDescription(itemDTO.getDescription());
-        item.setPrice(itemDTO.getPrice());
+        item.setBasePrice(itemDTO.getBasePrice());
+        item.setVendorPrice(itemDTO.getVendorPrice());
         item.setVegetarian(itemDTO.isVegetarian());
         item.setAvailable(itemDTO.isAvailable());
         item.setPreparationTimeMin(itemDTO.getPreparationTimeMin());
@@ -206,6 +215,7 @@ public class MenuService {
         item.setDisplayOrder(itemDTO.getDisplayOrder() != null ? itemDTO.getDisplayOrder() : 0);
         item.setAvailableStartTime(itemDTO.getAvailableStartTime());
         item.setAvailableEndTime(itemDTO.getAvailableEndTime());
+        item.setItemCategory(itemDTO.getItemCategory());
 
         try {
             MenuItem savedItem = menuItemRepository.save(item);
@@ -213,7 +223,7 @@ public class MenuService {
             logger.info("Menu item created with ID: {}", savedItem.getItemId());
             return itemDTO;
         } catch (Exception e) {
-            logger.error("Failed to create menu item for category ID: {} due to: {}", itemDTO.getCategoryId(), e.getMessage(), e);
+            logger.error("Failed to create menu item for category: {} due to: {}", itemDTO.getCategoryName(), e.getMessage(), e);
             throw new ServiceException("MENU_ITEM_CREATION_FAILED", "Failed to create menu item");
         }
     }
@@ -232,24 +242,33 @@ public class MenuService {
                     logger.warn("Menu item not found with id: {}", itemId);
                     return new ResourceNotFoundException("Menu item not found with id: " + itemId);
                 });
-        MenuCategory category = menuCategoryRepository.findById(itemDTO.getCategoryId())
+
+        Vendor vendor = vendorRepository.findById(getVendorIdForCategory(itemDTO.getCategoryName()))
                 .orElseThrow(() -> {
-                    logger.warn("Menu category not found with id: {}", itemDTO.getCategoryId());
-                    return new ResourceNotFoundException("Menu category not found with id: " + itemDTO.getCategoryId());
+                    logger.warn("Vendor not found for category: {}", itemDTO.getCategoryName());
+                    return new ResourceNotFoundException("Vendor not found for category: " + itemDTO.getCategoryName());
                 });
 
-        checkAuthorization(category.getVendor().getVendorId());
+        checkAuthorization(vendor.getVendorId());
+
+        // Verify category exists
+        menuCategoryRepository.findByVendorAndCategoryName(vendor, itemDTO.getCategoryName())
+                .orElseThrow(() -> {
+                    logger.warn("Menu category not found: {}", itemDTO.getCategoryName());
+                    return new ResourceNotFoundException("Menu category not found: " + itemDTO.getCategoryName());
+                });
 
         if (!item.getItemName().equals(itemDTO.getItemName()) &&
-                menuItemRepository.findByCategoryAndItemName(category, itemDTO.getItemName()).isPresent()) {
-            logger.warn("Duplicate menu item '{}' in category ID: {}", itemDTO.getItemName(), itemDTO.getCategoryId());
-            throw new InvalidInputException("Menu item '" + itemDTO.getItemName() + "' already exists in this category");
+                menuItemRepository.findByCategoryNameAndItemName(itemDTO.getCategoryName(), itemDTO.getItemName()).isPresent()) {
+            logger.warn("Duplicate menu item '{}' in category '{}'", itemDTO.getItemName(), itemDTO.getCategoryName());
+            throw new InvalidInputException("Menu item '" + itemDTO.getItemName() + "' already exists in category '" + itemDTO.getCategoryName() + "'");
         }
 
-        item.setCategory(category);
+        item.setCategoryName(itemDTO.getCategoryName());
         item.setItemName(itemDTO.getItemName());
         item.setDescription(itemDTO.getDescription());
-        item.setPrice(itemDTO.getPrice());
+        item.setBasePrice(itemDTO.getBasePrice());
+        item.setVendorPrice(itemDTO.getVendorPrice());
         item.setVegetarian(itemDTO.isVegetarian());
         item.setAvailable(itemDTO.isAvailable());
         item.setPreparationTimeMin(itemDTO.getPreparationTimeMin());
@@ -257,6 +276,7 @@ public class MenuService {
         item.setDisplayOrder(itemDTO.getDisplayOrder() != null ? itemDTO.getDisplayOrder() : 0);
         item.setAvailableStartTime(itemDTO.getAvailableStartTime());
         item.setAvailableEndTime(itemDTO.getAvailableEndTime());
+        item.setItemCategory(itemDTO.getItemCategory());
 
         try {
             MenuItem updatedItem = menuItemRepository.save(item);
@@ -283,7 +303,13 @@ public class MenuService {
                     return new ResourceNotFoundException("Menu item not found with id: " + itemId);
                 });
 
-        checkAuthorization(item.getCategory().getVendor().getVendorId());
+        Vendor vendor = vendorRepository.findById(getVendorIdForCategory(item.getCategoryName()))
+                .orElseThrow(() -> {
+                    logger.warn("Vendor not found for category: {}", item.getCategoryName());
+                    return new ResourceNotFoundException("Vendor not found for category: " + item.getCategoryName());
+                });
+
+        checkAuthorization(vendor.getVendorId());
 
         try {
             menuItemRepository.delete(item);
@@ -309,11 +335,11 @@ public class MenuService {
 
         MenuItemDTO itemDTO = new MenuItemDTO();
         itemDTO.setItemId(item.getItemId());
-        itemDTO.setCategoryId(item.getCategory().getCategoryId());
-        itemDTO.setCategoryName(item.getCategory().getCategoryName());
+        itemDTO.setCategoryName(item.getCategoryName());
         itemDTO.setItemName(item.getItemName());
         itemDTO.setDescription(item.getDescription());
-        itemDTO.setPrice(item.getPrice());
+        itemDTO.setBasePrice(item.getBasePrice());
+        itemDTO.setVendorPrice(item.getVendorPrice());
         itemDTO.setVegetarian(item.isVegetarian());
         itemDTO.setAvailable(item.isAvailable());
         itemDTO.setPreparationTimeMin(item.getPreparationTimeMin());
@@ -321,6 +347,7 @@ public class MenuService {
         itemDTO.setDisplayOrder(item.getDisplayOrder());
         itemDTO.setAvailableStartTime(item.getAvailableStartTime());
         itemDTO.setAvailableEndTime(item.getAvailableEndTime());
+        itemDTO.setItemCategory(item.getItemCategory());
         logger.debug("Fetched menu item ID: {}", itemId);
         return itemDTO;
     }
@@ -345,11 +372,11 @@ public class MenuService {
         return items.stream().map(item -> {
             MenuItemDTO itemDTO = new MenuItemDTO();
             itemDTO.setItemId(item.getItemId());
-            itemDTO.setCategoryId(item.getCategory().getCategoryId());
-            itemDTO.setCategoryName(item.getCategory().getCategoryName());
+            itemDTO.setCategoryName(item.getCategoryName());
             itemDTO.setItemName(item.getItemName());
             itemDTO.setDescription(item.getDescription());
-            itemDTO.setPrice(item.getPrice());
+            itemDTO.setBasePrice(item.getBasePrice());
+            itemDTO.setVendorPrice(item.getVendorPrice());
             itemDTO.setVegetarian(item.isVegetarian());
             itemDTO.setAvailable(item.isAvailable());
             itemDTO.setPreparationTimeMin(item.getPreparationTimeMin());
@@ -357,6 +384,7 @@ public class MenuService {
             itemDTO.setDisplayOrder(item.getDisplayOrder());
             itemDTO.setAvailableStartTime(item.getAvailableStartTime());
             itemDTO.setAvailableEndTime(item.getAvailableEndTime());
+            itemDTO.setItemCategory(item.getItemCategory());
             return itemDTO;
         }).collect(Collectors.toList());
     }
@@ -403,7 +431,7 @@ public class MenuService {
 
         if (!excelHelper.hasExcelFormat(file)) {
             logger.warn("Invalid file format: {}", file.getContentType());
-            throw new InvalidInputException("Please upload an Excel file with .xlsx or .xls extension");
+            throw new InvalidInputException("Please upload an Excel file: .xlsx or .xls extension required");
         }
 
         checkAuthorization(vendorId);
@@ -419,8 +447,8 @@ public class MenuService {
             try {
                 List<MenuCategory> existingCategories = menuCategoryRepository.findByVendorVendorId(vendorId);
                 for (MenuCategory category : existingCategories) {
-                    List<MenuItem> items = menuItemRepository.findByCategory(category);
-                    logger.debug("Deleting {} items in category ID: {}", items.size(), category.getCategoryId());
+                    List<MenuItem> items = menuItemRepository.findByCategoryName(category.getCategoryName());
+                    logger.debug("Deleting {} items in category: {}", items.size(), category.getCategoryName());
                     menuItemRepository.deleteAll(items);
                 }
                 menuCategoryRepository.deleteAll(existingCategories);
@@ -449,33 +477,27 @@ public class MenuService {
         for (MenuItemDTO dto : dtos) {
             validateExcelMenuItemDTO(dto, dtos.indexOf(dto) + 2);
 
-            MenuCategory category = menuCategoryRepository.findByVendorAndCategoryName(vendor, dto.getCategoryName());
-            if (category == null) {
-                logger.info("Creating new category '{}' for vendor ID: {}", dto.getCategoryName(), vendorId);
-                try {
-                    category = new MenuCategory();
-                    category.setVendor(vendor);
-                    category.setCategoryName(dto.getCategoryName());
-                    category.setDisplayOrder(dto.getDisplayOrder() != null ? dto.getDisplayOrder() : 0);
-                    category = menuCategoryRepository.save(category);
-                    logger.debug("Created category ID: {}", category.getCategoryId());
-                } catch (Exception e) {
-                    logger.error("Failed to create category '{}' for vendor ID: {} at row {} due to: {}",
-                            dto.getCategoryName(), vendorId, dtos.indexOf(dto) + 2, e.getMessage(), e);
-                    throw new ServiceException("CATEGORY_CREATION_FAILED", "Failed to create category at row " + (dtos.indexOf(dto) + 2));
-                }
-            }
+            MenuCategory category = menuCategoryRepository.findByVendorAndCategoryName(vendor, dto.getCategoryName())
+                    .orElseGet(() -> {
+                        logger.info("Creating new category '{}' for vendor ID: {}", dto.getCategoryName(), vendorId);
+                        MenuCategory newCategory = new MenuCategory();
+                        newCategory.setVendor(vendor);
+                        newCategory.setCategoryName(dto.getCategoryName());
+                        newCategory.setDisplayOrder(dto.getDisplayOrder() != null ? dto.getDisplayOrder() : 0);
+                        return menuCategoryRepository.save(newCategory);
+                    });
 
-            if (menuItemRepository.findByCategoryAndItemName(category, dto.getItemName()).isPresent()) {
+            if (menuItemRepository.findByCategoryNameAndItemName(dto.getCategoryName(), dto.getItemName()).isPresent()) {
                 logger.warn("Duplicate item '{}' in category '{}' at row {}", dto.getItemName(), dto.getCategoryName(), dtos.indexOf(dto) + 2);
                 throw new InvalidInputException("Item '" + dto.getItemName() + "' already exists in category '" + dto.getCategoryName() + "' at row " + (dtos.indexOf(dto) + 2));
             }
 
             MenuItem item = new MenuItem();
-            item.setCategory(category);
+            item.setCategoryName(dto.getCategoryName());
             item.setItemName(dto.getItemName());
             item.setDescription(dto.getDescription());
-            item.setPrice(dto.getPrice());
+            item.setBasePrice(dto.getBasePrice());
+            item.setVendorPrice(dto.getVendorPrice());
             item.setVegetarian(dto.isVegetarian());
             item.setAvailable(dto.isAvailable());
             item.setPreparationTimeMin(dto.getPreparationTimeMin());
@@ -483,6 +505,7 @@ public class MenuService {
             item.setDisplayOrder(dto.getDisplayOrder() != null ? dto.getDisplayOrder() : 0);
             item.setAvailableStartTime(dto.getAvailableStartTime());
             item.setAvailableEndTime(dto.getAvailableEndTime());
+            item.setItemCategory(dto.getItemCategory());
 
             menuItems.add(item);
             logger.debug("Prepared menu item: {} in category: {}", dto.getItemName(), dto.getCategoryName());
@@ -518,17 +541,27 @@ public class MenuService {
             logger.warn("Invalid menu item: DTO is null");
             throw new InvalidInputException("Menu item data is required");
         }
-        if (itemDTO.getCategoryId() == null) {
-            logger.warn("Invalid menu item: categoryId is null");
-            throw new InvalidInputException("Category ID is required");
+        if (!StringUtils.hasText(itemDTO.getCategoryName())) {
+            logger.warn("Invalid menu item: categoryName is null or empty");
+            throw new InvalidInputException("Category name is required");
         }
         if (!StringUtils.hasText(itemDTO.getItemName())) {
             logger.warn("Invalid menu item: itemName is empty");
             throw new InvalidInputException("Item name is required");
         }
-        if (itemDTO.getPrice() == null || itemDTO.getPrice().compareTo(BigDecimal.ZERO) < 0) {
-            logger.warn("Invalid menu item: price is null or negative");
-            throw new InvalidInputException("Valid price is required");
+        if (itemDTO.getBasePrice() == null || itemDTO.getBasePrice().compareTo(BigDecimal.ZERO) < 0) {
+            logger.warn("Invalid menu item: basePrice is null or negative");
+            throw new InvalidInputException("Valid base price is required");
+        }
+        if (itemDTO.getVendorPrice() != null) {
+            if (itemDTO.getVendorPrice().compareTo(BigDecimal.ZERO) < 0) {
+                logger.warn("Invalid menu item: vendorPrice is negative");
+                throw new InvalidInputException("Vendor price cannot be negative");
+            }
+            if (itemDTO.getBasePrice().compareTo(itemDTO.getVendorPrice()) <= 0) {
+                logger.warn("Invalid menu item: basePrice must be greater than vendorPrice");
+                throw new InvalidInputException("Base price must be greater than vendor price");
+            }
         }
     }
 
@@ -541,9 +574,25 @@ public class MenuService {
             logger.warn("Invalid menu item at row {}: itemName is empty", rowNumber);
             throw new InvalidInputException("Item name is required at row " + rowNumber);
         }
-        if (dto.getPrice() == null || dto.getPrice().compareTo(BigDecimal.ZERO) < 0) {
-            logger.warn("Invalid menu item at row {}: price is null or negative", rowNumber);
-            throw new InvalidInputException("Valid price is required at row " + rowNumber);
+        if (dto.getBasePrice() == null || dto.getBasePrice().compareTo(BigDecimal.ZERO) < 0) {
+            logger.warn("Invalid menu item at row {}: basePrice is null or negative", rowNumber);
+            throw new InvalidInputException("Valid base price is required at row " + rowNumber);
         }
+        if (dto.getVendorPrice() != null) {
+            if (dto.getVendorPrice().compareTo(BigDecimal.ZERO) < 0) {
+                logger.warn("Invalid menu item at row {}: vendorPrice is negative", rowNumber);
+                throw new InvalidInputException("Vendor price cannot be negative at row " + rowNumber);
+            }
+            if (dto.getBasePrice().compareTo(dto.getVendorPrice()) <= 0) {
+                logger.warn("Invalid menu item at row {}: basePrice must be greater than vendorPrice", rowNumber);
+                throw new InvalidInputException("Base price must be greater than vendor price at row " + rowNumber);
+            }
+        }
+    }
+
+    private Long getVendorIdForCategory(String categoryName) {
+        MenuCategory category = menuCategoryRepository.findByCategoryName(categoryName)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + categoryName));
+        return category.getVendor().getVendorId();
     }
 }

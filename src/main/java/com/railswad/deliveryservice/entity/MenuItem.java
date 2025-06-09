@@ -1,7 +1,5 @@
 package com.railswad.deliveryservice.entity;
 
-import com.railswad.deliveryservice.entity.MenuCategory;
-import com.railswad.deliveryservice.entity.OrderItem;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -14,15 +12,14 @@ import java.util.List;
 @Table(name = "menu_items")
 @Getter
 @Setter
-public class    MenuItem {
+public class MenuItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "item_id")
     private Long itemId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id", nullable = false)
-    private MenuCategory category;
+    @Column(name = "category_name", nullable = false, length = 100)
+    private String categoryName; // References MenuCategory.categoryName
 
     @Column(name = "item_name", nullable = false, length = 100)
     private String itemName;
@@ -30,8 +27,11 @@ public class    MenuItem {
     @Column(name = "description")
     private String description;
 
-    @Column(name = "price", nullable = false)
-    private BigDecimal price;
+    @Column(name = "base_price", nullable = false)
+    private BigDecimal basePrice; // Base price set by platform
+
+    @Column(name = "vendor_price")
+    private BigDecimal vendorPrice; // Vendor-specific price (optional)
 
     @Column(name = "is_vegetarian", nullable = false)
     private boolean vegetarian;
@@ -54,15 +54,29 @@ public class    MenuItem {
     @Column(name = "available_end_time")
     private LocalTime availableEndTime;
 
+    @Column(name = "item_category", length = 50)
+    private String itemCategory; // Item-specific category (e.g., Gravy, Snack)
+
     @OneToMany(mappedBy = "item", cascade = CascadeType.ALL)
     private List<OrderItem> orderItems;
 
     @PrePersist
     @PreUpdate
-    private void validateTimes() {
+    private void validateTimesAndPrices() {
         if (availableStartTime != null && availableEndTime != null) {
             if (availableEndTime.isBefore(availableStartTime)) {
                 throw new IllegalArgumentException("End time must be after start time");
+            }
+        }
+        if (basePrice == null || basePrice.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Base price must be non-negative");
+        }
+        if (vendorPrice != null) {
+            if (vendorPrice.compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("Vendor price cannot be negative");
+            }
+            if (basePrice.compareTo(vendorPrice) <= 0) {
+                throw new IllegalArgumentException("Base price must be greater than vendor price");
             }
         }
     }

@@ -69,7 +69,7 @@ public class MenuController {
     @PostMapping("/items")
     @PreAuthorize("hasAnyRole('ADMIN')")
     public ResponseEntity<MenuItemDTO> createMenuItem(@RequestBody MenuItemDTO itemDTO) {
-        logger.info("Received request to create menu item for category ID: {}", itemDTO.getCategoryId());
+        logger.info("Received request to create menu item for category ID: {}", itemDTO.getCategoryName());
         return ResponseEntity.ok(menuService.createMenuItem(itemDTO));
     }
 
@@ -139,11 +139,12 @@ public class MenuController {
             List<MenuItemDTO> itemDTOs = items.stream().map(item -> {
                 MenuItemDTO dto = new MenuItemDTO();
                 dto.setItemId(item.getItemId());
-                dto.setCategoryId(item.getCategory().getCategoryId());
-                dto.setCategoryName(item.getCategory().getCategoryName());
+                dto.setCategoryName(item.getCategoryName());
+                dto.setCategoryName(item.getCategoryName());
                 dto.setItemName(item.getItemName());
                 dto.setDescription(item.getDescription());
-                dto.setPrice(item.getPrice());
+                dto.setBasePrice(item.getBasePrice());
+                dto.setVendorPrice(item.getVendorPrice());
                 dto.setVegetarian(item.isVegetarian());
                 dto.setAvailable(item.isAvailable());
                 dto.setPreparationTimeMin(item.getPreparationTimeMin());
