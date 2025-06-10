@@ -14,6 +14,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class StationService {
@@ -71,6 +72,29 @@ public class StationService {
         stationDTO.setLatitude(station.getLatitude());
         stationDTO.setLongitude(station.getLongitude());
         return stationDTO;
+    }
+
+
+    public List<StationDTO> getStations(String stationName, String stationCode, String state) {
+        List<Station> stations;
+        if (StringUtils.hasText(stationName) || StringUtils.hasText(stationCode) || StringUtils.hasText(state)) {
+            Specification<Station> spec = StationSpecification.filterBy(stationName, stationCode, state);
+            stations = stationRepository.findAll(spec);
+        } else {
+            stations = stationRepository.findAll();
+        }
+        return stations.stream().map(station -> {
+            StationDTO stationDTO = new StationDTO();
+            stationDTO.setStationId(station.getStationId());
+            stationDTO.setStationCode(station.getStationCode());
+            stationDTO.setStationName(station.getStationName());
+            stationDTO.setCity(station.getCity());
+            stationDTO.setState(station.getState());
+            stationDTO.setPincode(station.getPincode());
+            stationDTO.setLatitude(station.getLatitude());
+            stationDTO.setLongitude(station.getLongitude());
+            return stationDTO;
+        }).collect(Collectors.toList());
     }
 
     public Page<StationDTO> getAllStations(Pageable pageable) {

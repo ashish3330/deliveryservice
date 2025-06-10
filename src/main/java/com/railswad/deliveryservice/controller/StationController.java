@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/stations")
 public class StationController {
@@ -48,7 +50,7 @@ public class StationController {
 
 
     @GetMapping
-    public ResponseEntity<Page<StationDTO>> getStations(
+    public ResponseEntity<Page<StationDTO>> getStationsPaged(
             @RequestParam(required = false) String stationName,
             @RequestParam(required = false) String stationCode,
             @RequestParam(required = false) String state,
@@ -56,4 +58,13 @@ public class StationController {
         Page<StationDTO> stations = stationService.findStationsByFilters(stationName, stationCode, state, pageable);
         return ResponseEntity.ok(stations);
     }
+
+    @GetMapping
+    public List<StationDTO> getStations(
+            @RequestParam(required = false) String stationName,
+            @RequestParam(required = false) String stationCode,
+            @RequestParam(required = false) String state) {
+        return stationService.getStations(stationName, stationCode, state);
+    }
+
 }
