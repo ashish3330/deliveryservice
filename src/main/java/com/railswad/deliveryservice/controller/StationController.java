@@ -59,7 +59,7 @@ public class StationController {
         return ResponseEntity.ok(stations);
     }
 
-    @GetMapping
+    @GetMapping("/all")
     public List<StationDTO> getStations(
             @RequestParam(required = false) String stationName,
             @RequestParam(required = false) String stationCode,
