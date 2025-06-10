@@ -2,6 +2,11 @@ package com.railswad.deliveryservice.service;
 
 import com.railswad.deliveryservice.entity.FileEntity;
 import com.railswad.deliveryservice.repository.FileRepository;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -52,13 +57,40 @@ public class S3Service {
         return fileUrl;
     }
 
-    public FileEntity getFile(Long id) {
-        FileEntity fileEntity = fileRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("File not found with ID: " + id));
-        // Generate fresh pre-signed URL (since stored URL may have expired)
-        String freshUrl = generatePresignedUrl(fileEntity.getSystemFileName());
-        fileEntity.setFileUrl(freshUrl);
-        return fileEntity;
+    public byte[] getFileBinaryDataByUrl(String fileUrl) {
+        // Try to fetch binary data using the provided pre-signed URL
+        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+            HttpGet request = new HttpGet(fileUrl);
+            try (CloseableHttpResponse response = httpClient.execute(request)) {
+                int statusCode = response.getStatusLine().getStatusCode();
+                if (statusCode == 200) {
+                    return EntityUtils.toByteArray(response.getEntity());
+                } else if (statusCode == 403 || statusCode == 404) {
+                    // URL likely expired, find the file entity by file_url
+                    FileEntity fileEntity = fileRepository.findByFileUrl(fileUrl)
+                            .orElseThrow(() -> new RuntimeException("File not found with URL: " + fileUrl));
+
+                    // Generate a fresh pre-signed URL
+                    String freshUrl = generatePresignedUrl(fileEntity.getSystemFileName());
+                    fileEntity.setFileUrl(freshUrl);
+                    fileRepository.save(fileEntity); // Update the stored URL
+
+                    // Retry with the fresh URL
+                    HttpGet retryRequest = new HttpGet(freshUrl);
+                    try (CloseableHttpResponse retryResponse = httpClient.execute(retryRequest)) {
+                        if (retryResponse.getStatusLine().getStatusCode() == 200) {
+                            return EntityUtils.toByteArray(retryResponse.getEntity());
+                        } else {
+                            throw new RuntimeException("Failed to fetch file with fresh URL, status: " + retryResponse.getStatusLine().getStatusCode());
+                        }
+                    }
+                } else {
+                    throw new RuntimeException("Failed to fetch file, status: " + statusCode);
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to download file from URL: " + e.getMessage(), e);
+        }
     }
 
     private String generatePresignedUrl(String fileName) {
