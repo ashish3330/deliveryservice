@@ -21,7 +21,7 @@ public class S3Service {
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
     private final FileRepository fileRepository;
-    private final String bucketName = "myapp-images";
+    private final String bucketName = "deliveryservice-image";
 
     public S3Service(S3Client s3Client, S3Presigner s3Presigner, FileRepository fileRepository) {
         this.s3Client = s3Client;
