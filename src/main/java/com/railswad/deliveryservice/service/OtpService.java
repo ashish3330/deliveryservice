@@ -159,7 +159,7 @@ public class OtpService {
             message.setTo(email);
             message.setSubject("Your OTP for RailSwad Registration");
             message.setText("Your OTP is: " + otp + ". It is valid for " + OTP_VALIDITY_MINUTES + " minutes. Do not share this code.");
-            message.setFrom("your-email@gmail.com"); // Must match spring.mail.username
+            message.setFrom("no-reply@railswad.com"); // Must match spring.mail.username
             javaMailSender.send(message);
             logger.info("OTP email sent to: {}", email);
         } catch (MailException e) {
