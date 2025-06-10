@@ -15,11 +15,11 @@ public class VendorController {
     @Autowired
     private VendorService vendorService;
 
-    @PostMapping
-    public ResponseEntity<VendorDTO> createVendor(@RequestBody VendorDTO vendorDTO) {
-        VendorDTO createdVendor = vendorService.createVendor(vendorDTO);
-        return ResponseEntity.ok(createdVendor);
-    }
+//    @PostMapping
+//    public ResponseEntity<VendorDTO> createVendor(@RequestBody VendorDTO vendorDTO) {
+//        VendorDTO createdVendor = vendorService.createVendor(vendorDTO);
+//        return ResponseEntity.ok(createdVendor);
+//    }
 
     @PutMapping("/{vendorId}")
     public ResponseEntity<VendorDTO> updateVendor(@PathVariable Long vendorId, @RequestBody VendorDTO vendorDTO) {
