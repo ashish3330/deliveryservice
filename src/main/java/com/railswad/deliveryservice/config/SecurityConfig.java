@@ -31,7 +31,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/register", "/api/auth/verify-otp", "/api/auth/login"
-                                ,"/api/files","/api/auth/logout","/api/stations/**","/api/menu/**","/api/vendors/**").permitAll()
+                                ,"/api/files/**","/api/auth/logout","/api/stations/**","/api/menu/**","/api/vendors/**").permitAll()
                         .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 //                        .requestMatchers("/api/admin/**").hasRole("ROLE_ADMIN")
 //                        .requestMatchers("/api/menu/**").hasAnyRole("ADMIN", "VENDOR", "USER")
