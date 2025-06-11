@@ -12,10 +12,12 @@ import com.railswad.deliveryservice.repository.RoleRepository;
 import com.railswad.deliveryservice.repository.UserRepository;
 import com.railswad.deliveryservice.repository.UserRoleRepository;
 import com.railswad.deliveryservice.util.JwtUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -30,11 +32,16 @@ import org.springframework.util.StringUtils;
 
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class AuthService implements UserDetailsService {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
+
+    private static final long OTP_TTL_SECONDS = 300L; // 5 minutes
+    private static final String REDIS_USER_PREFIX = "temp:user:";
+    private static final String REDIS_IDENTIFIER_PREFIX = "temp:identifier:";
 
     @Autowired
     private UserRepository userRepository;
@@ -61,12 +68,18 @@ public class AuthService implements UserDetailsService {
     @Autowired
     private VendorService vendorService;
 
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Transactional
     public UserDTO registerUser(UserDTO userDTO, String ipAddress, String deviceInfo) {
         logger.info("Attempting to register user with email: {} or phoneNumber: {} and role: {}",
                 userDTO.getEmail(), userDTO.getPhoneNumber(), userDTO.getRole());
 
-        // Validate that exactly one of email or phoneNumber is provided
+        // Validate input
         if ((userDTO.getEmail() == null || userDTO.getEmail().isEmpty()) &&
                 (userDTO.getPhoneNumber() == null || userDTO.getPhoneNumber().isEmpty())) {
             logger.warn("Registration failed: Either email or phoneNumber is required");
@@ -79,7 +92,9 @@ public class AuthService implements UserDetailsService {
         }
         validateUserDTO(userDTO);
 
-        // Check for existing user by email or phoneNumber
+        // Check for existing verified user in database
+        String identifier = userDTO.getEmail() != null && !userDTO.getEmail().isEmpty() ?
+                userDTO.getEmail() : userDTO.getPhoneNumber();
         if (userDTO.getEmail() != null && !userDTO.getEmail().isEmpty() &&
                 userRepository.findByEmail(userDTO.getEmail()).isPresent()) {
             logger.warn("Registration failed: User already exists with email: {}", userDTO.getEmail());
@@ -91,77 +106,51 @@ public class AuthService implements UserDetailsService {
             throw new UserAlreadyExistsException("User already exists with phoneNumber: " + userDTO.getPhoneNumber());
         }
 
-        User user = new User();
-        user.setEmail(userDTO.getEmail());
-        user.setUsername(userDTO.getUsername());
-        user.setPhone(userDTO.getPhoneNumber());
-        user.setPasswordHash(passwordEncoder.encode(userDTO.getPassword()));
-        user.setSalt(generateSalt());
-        user.setVerified(false);
-        user.setActive(true);
-        user.setCreatedAt(ZonedDateTime.now());
-        user.setUpdatedAt(ZonedDateTime.now());
+        // Generate temporary user ID
+        String tempUserId = UUID.randomUUID().toString();
+        String passwordHash = passwordEncoder.encode(userDTO.getPassword());
+        String salt = generateSalt();
 
+        // Store user data in Redis
         try {
-            user = userRepository.save(user);
-            logger.debug("User saved with ID: {}", user.getUserId());
+            String userJson = objectMapper.writeValueAsString(userDTO);
+            String redisUserKey = REDIS_USER_PREFIX + tempUserId;
+            String redisIdentifierKey = REDIS_IDENTIFIER_PREFIX + identifier;
+
+            // Store user data with TTL
+            redisTemplate.opsForValue().set(redisUserKey, userJson, OTP_TTL_SECONDS, TimeUnit.SECONDS);
+            // Map identifier to tempUserId (overwrite if re-registering)
+            redisTemplate.opsForValue().set(redisIdentifierKey, tempUserId, OTP_TTL_SECONDS, TimeUnit.SECONDS);
+            // Store password hash and salt separately (security consideration)
+            redisTemplate.opsForHash().put(redisUserKey + ":security", "passwordHash", passwordHash);
+            redisTemplate.opsForHash().put(redisUserKey + ":security", "salt", salt);
+            redisTemplate.expire(redisUserKey + ":security", OTP_TTL_SECONDS, TimeUnit.SECONDS);
+
+            logger.debug("Stored temporary user data in Redis for tempUserId: {}", tempUserId);
         } catch (Exception e) {
-            logger.error("Failed to save user with email: {} or phoneNumber: {} due to: {}",
-                    userDTO.getEmail(), userDTO.getPhoneNumber(), e.getMessage(), e);
-            throw new ServiceException("USER_SAVE_FAILED", "Failed to register user due to database error");
+            logger.error("Failed to store user data in Redis for identifier: {} due to: {}", identifier, e.getMessage(), e);
+            throw new ServiceException("REDIS_STORAGE_FAILED", "Failed to store temporary user data");
         }
 
-        String roleName = userDTO.getRole() != null ? userDTO.getRole().toUpperCase() : "ROLE_CUSTOMER";
-        Role role = roleRepository.findByName(roleName)
-                .orElseThrow(() -> {
-                    logger.error("Role not found: {}", roleName);
-                    return new ResourceNotFoundException("Role not found: " + roleName);
-                });
-
-        UserRole userRole = new UserRole();
-        userRole.setUserId(user.getUserId());
-        userRole.setRoleId(role.getRoleId());
-        userRole.setUser(user);
-        userRole.setRole(role);
-
+        // Generate and send OTP
         try {
-            userRole = userRoleRepository.save(userRole);
-            logger.debug("Assigned role {} to user ID: {}", roleName, user.getUserId());
+            otpService.generateAndSendOtp(tempUserId, ipAddress, deviceInfo);
+            logger.info("OTP generated and sent for tempUserId: {}", tempUserId);
         } catch (Exception e) {
-            logger.error("Failed to assign role {} to user ID: {} due to: {}",
-                    roleName, user.getUserId(), e.getMessage(), e);
-            throw new ServiceException("ROLE_ASSIGNMENT_FAILED", "Failed to assign role to user");
-        }
-
-        if (user.getUserRoles() == null) {
-            user.setUserRoles(new HashSet<>());
-        }
-        user.getUserRoles().add(userRole);
-        try {
-            user = userRepository.save(user);
-            logger.debug("Updated user roles for user ID: {}", user.getUserId());
-        } catch (Exception e) {
-            logger.error("Failed to update user roles for user ID: {} due to: {}",
-                    user.getUserId(), e.getMessage(), e);
-            throw new ServiceException("USER_UPDATE_FAILED", "Failed to update user roles");
-        }
-
-        try {
-            otpService.generateAndSendOtp(user.getUserId(), ipAddress, deviceInfo);
-            logger.info("OTP generated and sent for user ID: {}", user.getUserId());
-        } catch (Exception e) {
-            logger.error("Failed to generate OTP for user ID: {} due to: {}",
-                    user.getUserId(), e.getMessage(), e);
+            logger.error("Failed to generate OTP for tempUserId: {} due to: {}", tempUserId, e.getMessage(), e);
+            // Clean up Redis on OTP failure
+            redisTemplate.delete(REDIS_USER_PREFIX + tempUserId);
+            redisTemplate.delete(REDIS_IDENTIFIER_PREFIX + identifier);
+            redisTemplate.delete(REDIS_USER_PREFIX + tempUserId + ":security");
             throw new ServiceException("OTP_GENERATION_FAILED", "Failed to generate OTP");
         }
 
         UserDTO responseDTO = new UserDTO();
-        responseDTO.setEmail(user.getEmail());
-        responseDTO.setUsername(user.getUsername());
-        responseDTO.setPhoneNumber(user.getPhone());
-        responseDTO.setRole(roleName);
-        logger.info("User registered successfully with email: {} or phoneNumber: {}",
-                userDTO.getEmail(), userDTO.getPhoneNumber());
+        responseDTO.setEmail(userDTO.getEmail());
+        responseDTO.setUsername(userDTO.getUsername());
+        responseDTO.setPhoneNumber(userDTO.getPhoneNumber());
+        responseDTO.setRole(userDTO.getRole() != null ? userDTO.getRole().toUpperCase() : "ROLE_CUSTOMER");
+        logger.info("User registration initiated for identifier: {}", identifier);
         return responseDTO;
     }
 
@@ -170,7 +159,7 @@ public class AuthService implements UserDetailsService {
         logger.info("Verifying OTP for email: {} or phoneNumber: {}",
                 otpRequestDTO.getEmail(), otpRequestDTO.getPhoneNumber());
 
-        // Validate that exactly one of email or phoneNumber is provided
+        // Validate input
         if ((otpRequestDTO.getEmail() == null || otpRequestDTO.getEmail().isEmpty()) &&
                 (otpRequestDTO.getPhoneNumber() == null || otpRequestDTO.getPhoneNumber().isEmpty())) {
             logger.warn("Invalid OTP verification request: Either email or phoneNumber is required");
@@ -186,59 +175,126 @@ public class AuthService implements UserDetailsService {
             throw new InvalidInputException("OTP code is required");
         }
 
-        User user = null;
-        if (otpRequestDTO.getEmail() != null && !otpRequestDTO.getEmail().isEmpty()) {
-            user = userRepository.findByEmail(otpRequestDTO.getEmail())
-                    .orElseThrow(() -> {
-                        logger.warn("User not found for OTP verification with email: {}",
-                                otpRequestDTO.getEmail());
-                        return new ResourceNotFoundException("User not found with email: " +
-                                otpRequestDTO.getEmail());
-                    });
-        } else {
-            user = userRepository.findByPhone(otpRequestDTO.getPhoneNumber())
-                    .orElseThrow(() -> {
-                        logger.warn("User not found for OTP verification with phoneNumber: {}",
-                                otpRequestDTO.getPhoneNumber());
-                        return new ResourceNotFoundException("User not found with phoneNumber: " +
-                                otpRequestDTO.getPhoneNumber());
-                    });
+        // Get identifier and retrieve tempUserId from Redis
+        String identifier = otpRequestDTO.getEmail() != null && !otpRequestDTO.getEmail().isEmpty() ?
+                otpRequestDTO.getEmail() : otpRequestDTO.getPhoneNumber();
+        String redisIdentifierKey = REDIS_IDENTIFIER_PREFIX + identifier;
+        String tempUserId = redisTemplate.opsForValue().get(redisIdentifierKey);
+        if (tempUserId == null) {
+            logger.warn("No temporary user found for identifier: {}", identifier);
+            throw new ResourceNotFoundException("No registration attempt found for " + identifier);
         }
 
+        // Retrieve user data from Redis
+        String redisUserKey = REDIS_USER_PREFIX + tempUserId;
+        String userJson = redisTemplate.opsForValue().get(redisUserKey);
+        if (userJson == null) {
+            logger.warn("Temporary user data expired or not found for tempUserId: {}", tempUserId);
+            redisTemplate.delete(redisIdentifierKey);
+            throw new ResourceNotFoundException("Registration data expired or not found");
+        }
+
+        UserDTO userDTO;
+        String passwordHash;
+        String salt;
         try {
-            if (!otpService.verifyOtp(user.getUserId(), otpRequestDTO.getOtp(), ipAddress)) {
-                logger.warn("Invalid or expired OTP for user ID: {}", user.getUserId());
+            userDTO = objectMapper.readValue(userJson, UserDTO.class);
+            passwordHash = (String) redisTemplate.opsForHash().get(redisUserKey + ":security", "passwordHash");
+            salt = (String) redisTemplate.opsForHash().get(redisUserKey + ":security", "salt");
+            if (passwordHash == null || salt == null) {
+                logger.warn("Security data missing for tempUserId: {}", tempUserId);
+                throw new ServiceException("REDIS_DATA_CORRUPTED", "Missing security data");
+            }
+        } catch (Exception e) {
+            logger.error("Failed to deserialize user data for tempUserId: {} due to: {}", tempUserId, e.getMessage(), e);
+            throw new ServiceException("REDIS_DESERIALIZATION_FAILED", "Failed to retrieve user data");
+        }
+
+        // Verify OTP
+        try {
+            if (!otpService.verifyOtp(tempUserId, otpRequestDTO.getOtp(), ipAddress)) {
+                logger.warn("Invalid or expired OTP for tempUserId: {}", tempUserId);
                 throw new InvalidInputException("Invalid or expired OTP");
             }
         } catch (Exception e) {
-            logger.error("OTP verification failed for user ID: {} due to: {}",
-                    user.getUserId(), e.getMessage(), e);
+            logger.error("OTP verification failed for tempUserId: {} due to: {}", tempUserId, e.getMessage(), e);
             throw new ServiceException("OTP_VERIFICATION_FAILED", "Failed to verify OTP");
         }
 
+        // Save user to database
+        User user = new User();
+        user.setEmail(userDTO.getEmail());
+        user.setUsername(userDTO.getUsername());
+        user.setPhone(userDTO.getPhoneNumber());
+        user.setPasswordHash(passwordHash);
+        user.setSalt(salt);
         user.setVerified(true);
+        user.setActive(true);
+        user.setCreatedAt(ZonedDateTime.now());
         user.setUpdatedAt(ZonedDateTime.now());
+
         try {
-            userRepository.save(user);
-            logger.debug("User ID: {} marked as verified", user.getUserId());
+            user = userRepository.save(user);
+            logger.debug("User saved with ID: {}", user.getUserId());
         } catch (Exception e) {
-            logger.error("Failed to update user verification status for user ID: {} due to: {}",
-                    user.getUserId(), e.getMessage(), e);
-            throw new ServiceException("USER_UPDATE_FAILED", "Failed to update user verification status");
+            logger.error("Failed to save user with identifier: {} due to: {}", identifier, e.getMessage(), e);
+            throw new ServiceException("USER_SAVE_FAILED", "Failed to save user");
         }
 
-        String roleName = user.getUserRoles().stream()
-                .map(userRole -> userRole.getRole().getName())
-                .findFirst()
-                .orElse("ROLE_CUSTOMER");
+        // Assign role
+        String roleName = userDTO.getRole() != null ? userDTO.getRole().toUpperCase() : "ROLE_CUSTOMER";
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> {
+                    logger.error("Role not found: {}", roleName);
+                    return new ResourceNotFoundException("Role not found: " + roleName);
+                });
+
+        UserRole userRole = new UserRole();
+        userRole.setUserId(user.getUserId());
+        userRole.setRoleId(role.getRoleId());
+        userRole.setUser(user);
+        userRole.setRole(role);
+
+        try {
+            userRoleRepository.save(userRole);
+            logger.debug("Assigned role {} to user ID: {}", roleName, user.getUserId());
+        } catch (Exception e) {
+            logger.error("Failed to assign role {} to user ID: {} due to: {}", roleName, user.getUserId(), e.getMessage(), e);
+            throw new ServiceException("ROLE_ASSIGNMENT_FAILED", "Failed to assign role to user");
+        }
+
+        if (user.getUserRoles() == null) {
+            user.setUserRoles(new HashSet<>());
+        }
+        user.getUserRoles().add(userRole); // Fixed: Add UserRole object to set
+        try {
+            user = userRepository.save(user);
+            logger.debug("Updated user roles for user ID: {}", user.getUserId());
+        } catch (Exception e) {
+            logger.error("Failed to update user roles for user ID: {} due to: {}", user.getUserId(), e.getMessage(), e);
+            throw new ServiceException("USER_UPDATE_FAILED", "Failed to update user roles");
+        }
+
+        // Clean up Redis
+        try {
+            redisTemplate.delete(redisUserKey);
+            redisTemplate.delete(redisIdentifierKey);
+            redisTemplate.delete(redisUserKey + ":security");
+            logger.debug("Cleaned up Redis data for tempUserId: {}", tempUserId);
+        } catch (Exception e) {
+            logger.warn("Failed to clean up Redis data for tempUserId: {}: {}", tempUserId, e.getMessage());
+            // Non-critical, log and continue
+        }
+
         UserDTO responseDTO = new UserDTO();
         responseDTO.setEmail(user.getEmail());
         responseDTO.setUsername(user.getUsername());
         responseDTO.setPhoneNumber(user.getPhone());
         responseDTO.setRole(roleName);
-        logger.info("OTP verified successfully for user ID: {}", user.getUserId());
+        logger.info("OTP verified and user registered successfully for identifier: {}", identifier);
         return responseDTO;
     }
+    // Other methods remain unchanged...
 
     @Transactional
     public String login(String identifier, String password) {
@@ -266,11 +322,10 @@ public class AuthService implements UserDetailsService {
         }
 
         String rawRole = user.getUserRoles().stream()
-                .map(userRole -> userRole.getRole().getName()) // e.g., "ROLE_ADMIN"
+                .map(userRole -> userRole.getRole().getName())
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("No role assigned to user"));
 
-        // Remove "ROLE_" prefix before putting it in the token
         String tokenRole = rawRole.startsWith("ROLE_") ? rawRole.substring(5) : rawRole;
 
         try {
@@ -300,7 +355,7 @@ public class AuthService implements UserDetailsService {
         user.setPhone(vendorDTO.getPhone());
         user.setPasswordHash(passwordEncoder.encode(vendorDTO.getPassword()));
         user.setSalt(generateSalt());
-        user.setVerified(true); // Admins create verified vendors
+        user.setVerified(true);
         user.setActive(true);
         user.setCreatedAt(ZonedDateTime.now());
         user.setUpdatedAt(ZonedDateTime.now());
@@ -411,10 +466,6 @@ public class AuthService implements UserDetailsService {
             logger.warn("Invalid user registration: UserDTO is null");
             throw new InvalidInputException("User data is required");
         }
-        if (!StringUtils.hasText(userDTO.getEmail())) {
-            logger.warn("Invalid user registration: Email is empty");
-            throw new InvalidInputException("Email is required");
-        }
         if (!StringUtils.hasText(userDTO.getUsername()) && !StringUtils.hasText(userDTO.getPhoneNumber())) {
             logger.warn("Invalid user registration: Username is empty");
             throw new InvalidInputException("Username is required");
@@ -423,7 +474,6 @@ public class AuthService implements UserDetailsService {
             logger.warn("Invalid user registration: Password is empty");
             throw new InvalidInputException("Password is required");
         }
-      
     }
 
     private void validateVendorDTO(VendorCreationDTO vendorDTO) {
