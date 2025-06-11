@@ -142,7 +142,6 @@ public class StationService {
         return stations.stream().map(this::mapToDTO).collect(Collectors.toList());
     }
 
-    @Cacheable(value = "stations", key = "'page-' + #pageable.pageNumber + '-' + #stationName + '-' + #stationCode + '-' + #state")
     public Page<StationDTO> findStationsByFilters(String stationName, String stationCode, String state, Pageable pageable) {
         Specification<Station> spec = StationSpecification.filterBy(stationName, stationCode, state);
         return stationRepository.findAll(spec, pageable).map(this::mapToDTO);
