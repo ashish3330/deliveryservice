@@ -10,6 +10,9 @@ import com.railswad.deliveryservice.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -53,6 +56,9 @@ public class OrderService {
     private PaymentService paymentService;
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "orders", key = "#result.orderId", condition = "#result != null")
+    })
     public OrderDTO createOrder(OrderDTO orderDTO) {
         long startTime = System.currentTimeMillis();
         logger.info("Starting order creation for customer ID: {}, vendor ID: {}, train ID: {}",
@@ -142,6 +148,8 @@ public class OrderService {
     }
 
     @Transactional
+    @CacheEvict(value = "orders", key = "#orderId")
+
     public void markCodPaymentCompleted(Long orderId, Long updatedById, String remarks) {
         logger.info("Processing COD payment completion for order ID: {}, updated by user ID: {}", orderId, updatedById);
         try {
@@ -176,6 +184,7 @@ public class OrderService {
     }
 
     @Transactional
+    @CacheEvict(value = "orders", key = "#orderId")
     public OrderDTO updateOrderStatus(Long orderId, OrderStatus status, String remarks, Long updatedById) {
         long startTime = System.currentTimeMillis();
         logger.info("Updating order status for order ID: {} to {}, updated by user ID: {}", orderId, status, updatedById);
@@ -228,6 +237,9 @@ public class OrderService {
         }
     }
 
+
+
+    @Cacheable(value = "orders", key = "#orderId")
     public OrderDTO getOrderById(Long orderId) {
         logger.info("Fetching order with ID: {}", orderId);
         try {
