@@ -54,15 +54,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleUnauthorizedException(UnauthorizedException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
     }
-
-
-
-
-
-
-
-
-
     @Data
     @AllArgsConstructor
     private static class ErrorResponse {
