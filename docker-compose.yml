@@ -16,6 +16,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379" # Optional for debugging; remove for production
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
   app:
     image: deliveryservice-app
     container_name: deliveryservice
@@ -26,6 +38,8 @@ services:
     depends_on:
       prod-db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
@@ -34,3 +48,4 @@ services:
       retries: 3
 volumes:
   prod_data:
+  redis_data:
