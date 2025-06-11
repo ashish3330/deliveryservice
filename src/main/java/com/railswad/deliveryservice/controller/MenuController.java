@@ -124,7 +124,7 @@ public class MenuController {
         }
     }
 
-    @GetMapping("/vendors/{vendorId}/menu")
+    @GetMapping("/{vendorId}/menu")
     public ResponseEntity<?> getMenuByVendor(@PathVariable Long vendorId) {
         logger.info("Received request to fetch full menu for vendor ID: {}", vendorId);
         try {

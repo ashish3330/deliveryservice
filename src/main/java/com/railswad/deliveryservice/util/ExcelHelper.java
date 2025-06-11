@@ -1,6 +1,7 @@
 package com.railswad.deliveryservice.util;
 
 import com.railswad.deliveryservice.dto.MenuItemDTO;
+import com.railswad.deliveryservice.dto.StationDTO;
 import org.apache.poi.ss.usermodel.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,6 +98,77 @@ public class ExcelHelper {
 
             logger.info("Successfully parsed {} menu items from Excel", menuItemDTOs.size());
             return menuItemDTOs;
+        } finally {
+            if (workbook != null) {
+                try {
+                    workbook.close();
+                    logger.debug("Closed Excel workbook");
+                } catch (IOException e) {
+                    logger.error("Error closing workbook: {}", e.getMessage());
+                }
+            }
+        }
+    }
+
+    public List<StationDTO> excelToStationDTOs(InputStream is) throws IOException {
+        logger.info("Starting Excel file parsing for StationDTOs");
+        List<StationDTO> stationDTOs = new ArrayList<>();
+        Workbook workbook = null;
+
+        try {
+            workbook = WorkbookFactory.create(is);
+            Sheet sheet = workbook.getSheetAt(0);
+            DataFormatter formatter = new DataFormatter();
+
+            Iterator<Row> rowIterator = sheet.iterator();
+            if (!rowIterator.hasNext()) {
+                logger.warn("Excel sheet is empty");
+                return stationDTOs;
+            }
+
+            // Step 1: Read header row
+            Row headerRow = rowIterator.next();
+            Map<String, Integer> headerMap = new HashMap<>();
+            for (Cell cell : headerRow) {
+                String header = formatter.formatCellValue(cell).trim().toLowerCase();
+                headerMap.put(header, cell.getColumnIndex());
+            }
+
+            logger.info("Header columns found: {}", headerMap.keySet());
+
+            // Step 2: Read data rows
+            while (rowIterator.hasNext()) {
+                Row row = rowIterator.next();
+                StationDTO dto = new StationDTO();
+
+                try {
+                    dto.setStationCode(getValue(formatter, row, headerMap, "stationcode"));
+                    dto.setStationName(getValue(formatter, row, headerMap, "stationname"));
+                    dto.setCity(getValue(formatter, row, headerMap, "city"));
+                    dto.setState(getValue(formatter, row, headerMap, "state"));
+                    dto.setPincode(getValue(formatter, row, headerMap, "pincode"));
+
+                    String latitudeStr = getValue(formatter, row, headerMap, "latitude");
+                    dto.setLatitude(latitudeStr.isEmpty() ? null : Double.parseDouble(latitudeStr));
+
+                    String longitudeStr = getValue(formatter, row, headerMap, "longitude");
+                    dto.setLongitude(longitudeStr.isEmpty() ? null : Double.parseDouble(longitudeStr));
+
+                    // Basic validation
+                    if (dto.getStationCode() == null || dto.getStationName() == null || dto.getCity() == null) {
+                        throw new IllegalArgumentException("Missing required fields (stationcode, stationname, city)");
+                    }
+
+                    stationDTOs.add(dto);
+                    logger.debug("Parsed row {}: {}", row.getRowNum() + 1, dto);
+                } catch (Exception e) {
+                    logger.error("Error parsing row {}: {}", row.getRowNum() + 1, e.getMessage());
+                    throw new RuntimeException("Error processing row " + (row.getRowNum() + 1) + ": " + e.getMessage());
+                }
+            }
+
+            logger.info("Successfully parsed {} stations from Excel", stationDTOs.size());
+            return stationDTOs;
         } finally {
             if (workbook != null) {
                 try {
