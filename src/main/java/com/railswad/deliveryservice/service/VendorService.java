@@ -8,6 +8,7 @@ import com.railswad.deliveryservice.exception.ResourceNotFoundException;
 import com.railswad.deliveryservice.repository.StationRepository;
 import com.railswad.deliveryservice.repository.UserRepository;
 import com.railswad.deliveryservice.repository.VendorRepository;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,6 +32,15 @@ public class VendorService {
         Station station = stationRepository.findById(Math.toIntExact(vendorDTO.getStationId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Station not found with id: " + vendorDTO.getStationId()));
 
+        Vendor vendor = getVendor(vendorDTO, user, station);
+
+        Vendor savedVendor = vendorRepository.save(vendor);
+        vendorDTO.setVendorId(savedVendor.getVendorId());
+        return vendorDTO;
+    }
+
+    @NotNull
+    private static Vendor getVendor(VendorDTO vendorDTO, User user, Station station) {
         Vendor vendor = new Vendor();
         vendor.setUser(user);
         vendor.setBusinessName(vendorDTO.getBusinessName());
@@ -38,16 +48,15 @@ public class VendorService {
         vendor.setLogoUrl(vendorDTO.getLogoUrl());
         vendor.setFssaiLicense(vendorDTO.getFssaiLicense());
         vendor.setStation(station);
+        vendor.setIsVeg(vendorDTO.isVeg());
+        vendor.setGstNumber(vendorDTO.getGstNumber());
         vendor.setAddress(vendorDTO.getAddress());
         vendor.setPreparationTimeMin(vendorDTO.getPreparationTimeMin());
         vendor.setMinOrderAmount(vendorDTO.getMinOrderAmount());
         vendor.setVerified(vendorDTO.isVerified());
         vendor.setRating(vendorDTO.getRating());
         vendor.setActiveStatus(vendorDTO.isActiveStatus());
-
-        Vendor savedVendor = vendorRepository.save(vendor);
-        vendorDTO.setVendorId(savedVendor.getVendorId());
-        return vendorDTO;
+        return vendor;
     }
 
     public VendorDTO updateVendor(Long vendorId, VendorDTO vendorDTO) {
@@ -61,6 +70,8 @@ public class VendorService {
         vendor.setLogoUrl(vendorDTO.getLogoUrl());
         vendor.setFssaiLicense(vendorDTO.getFssaiLicense());
         vendor.setStation(station);
+        vendor.setIsVeg(vendorDTO.isVeg());
+        vendor.setGstNumber(vendorDTO.getGstNumber());
         vendor.setAddress(vendorDTO.getAddress());
         vendor.setPreparationTimeMin(vendorDTO.getPreparationTimeMin());
         vendor.setMinOrderAmount(vendorDTO.getMinOrderAmount());
@@ -87,6 +98,8 @@ public class VendorService {
         vendorDTO.setBusinessName(vendor.getBusinessName());
         vendorDTO.setDescription(vendor.getDescription());
         vendorDTO.setLogoUrl(vendor.getLogoUrl());
+        vendorDTO.setVeg(vendor.getIsVeg());
+        vendorDTO.setGstNumber(vendor.getGstNumber());
         vendorDTO.setFssaiLicense(vendor.getFssaiLicense());
         vendorDTO.setStationId(Long.valueOf(vendor.getStation().getStationId()));
         vendorDTO.setAddress(vendor.getAddress());
@@ -108,6 +121,8 @@ public class VendorService {
             vendorDTO.setFssaiLicense(vendor.getFssaiLicense());
             vendorDTO.setStationId(Long.valueOf(vendor.getStation().getStationId()));
             vendorDTO.setAddress(vendor.getAddress());
+            vendorDTO.setVeg(vendor.getIsVeg());
+            vendorDTO.setGstNumber(vendor.getGstNumber());
             vendorDTO.setPreparationTimeMin(vendor.getPreparationTimeMin());
             vendorDTO.setMinOrderAmount(vendor.getMinOrderAmount());
             vendorDTO.setVerified(vendor.getVerified());

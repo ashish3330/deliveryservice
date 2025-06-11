@@ -11,11 +11,13 @@ public class VendorDTO {
     private String description;
     private String logoUrl;
     private String fssaiLicense;
+    private String gstNumber;
     private Long stationId;
     private String address;
     private Integer preparationTimeMin;
     private Double minOrderAmount;
     private boolean verified;
+    private boolean isVeg;
     private Double rating;
     private boolean activeStatus;
 }

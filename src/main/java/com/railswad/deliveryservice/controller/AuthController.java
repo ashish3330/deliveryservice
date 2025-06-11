@@ -44,7 +44,6 @@ public class AuthController {
             userResponseDTO.setEmail(userDTO.getEmail());
             userResponseDTO.setUsername(userDTO.getUsername());
 
-
             return ResponseEntity.ok(userResponseDTO);
         } catch (IllegalArgumentException e) {
             logger.error("Invalid registration request: {}", e.getMessage());
