@@ -9,6 +9,7 @@ import com.railswad.deliveryservice.entity.User;
 import com.railswad.deliveryservice.entity.UserRole;
 import com.railswad.deliveryservice.exception.*;
 import com.railswad.deliveryservice.repository.RoleRepository;
+import com.railswad.deliveryservice.repository.StationRepository;
 import com.railswad.deliveryservice.repository.UserRepository;
 import com.railswad.deliveryservice.repository.UserRoleRepository;
 import com.railswad.deliveryservice.util.JwtUtil;
@@ -51,6 +52,9 @@ public class AuthService implements UserDetailsService {
 
     @Autowired
     private UserRoleRepository userRoleRepository;
+
+    @Autowired
+    private StationRepository stationRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -342,13 +346,20 @@ public class AuthService implements UserDetailsService {
     @PreAuthorize("hasRole('ADMIN')")
     public VendorCreationDTO createVendor(VendorCreationDTO vendorDTO, String ipAddress, String deviceInfo) {
         logger.info("Admin attempting to create vendor with email: {}", vendorDTO.getEmail());
+
+        if (vendorDTO.getStationId() != null && !stationRepository.existsById(Math.toIntExact(vendorDTO.getStationId()))) {
+            logger.warn("Invalid stationId: {}", vendorDTO.getStationId());
+            throw new InvalidInputException("Invalid station ID: " + vendorDTO.getStationId());
+        }
         validateVendorDTO(vendorDTO);
 
+        // Check if user already exists
         if (userRepository.findByEmail(vendorDTO.getEmail()).isPresent()) {
             logger.warn("Vendor creation failed: User already exists with email: {}", vendorDTO.getEmail());
             throw new UserAlreadyExistsException("User already exists with email: " + vendorDTO.getEmail());
         }
 
+        // Prepare User entity
         User user = new User();
         user.setEmail(vendorDTO.getEmail());
         user.setUsername(vendorDTO.getUsername());
@@ -360,6 +371,7 @@ public class AuthService implements UserDetailsService {
         user.setCreatedAt(ZonedDateTime.now());
         user.setUpdatedAt(ZonedDateTime.now());
 
+        // Save User
         try {
             user = userRepository.save(user);
             logger.debug("Vendor user saved with ID: {}", user.getUserId());
@@ -368,6 +380,7 @@ public class AuthService implements UserDetailsService {
             throw new ServiceException("VENDOR_SAVE_FAILED", "Failed to create vendor user");
         }
 
+        // Prepare UserRole
         Role vendorRole = roleRepository.findByName("ROLE_VENDOR")
                 .orElseThrow(() -> {
                     logger.error("ROLE_VENDOR not found");
@@ -380,14 +393,7 @@ public class AuthService implements UserDetailsService {
         userRole.setUser(user);
         userRole.setRole(vendorRole);
 
-        try {
-            userRoleRepository.save(userRole);
-            logger.debug("Assigned ROLE_VENDOR to user ID: {}", user.getUserId());
-        } catch (Exception e) {
-            logger.error("Failed to assign ROLE_VENDOR to user ID: {} due to: {}", user.getUserId(), e.getMessage(), e);
-            throw new ServiceException("ROLE_ASSIGNMENT_FAILED", "Failed to assign vendor role");
-        }
-
+        // Prepare VendorDTO
         VendorDTO vendorDetails = new VendorDTO();
         vendorDetails.setVendorId(user.getUserId());
         vendorDetails.setBusinessName(vendorDTO.getBusinessName());
@@ -402,14 +408,25 @@ public class AuthService implements UserDetailsService {
         vendorDetails.setRating(vendorDTO.getRating() != null ? vendorDTO.getRating() : 0.0);
         vendorDetails.setActiveStatus(vendorDTO.getActiveStatus() != null ? vendorDTO.getActiveStatus() : true);
 
+        // Save UserRole and Vendor in a single try-catch to ensure atomicity
         try {
+            // Save UserRole
+            userRoleRepository.save(userRole);
+            logger.debug("Assigned ROLE_VENDOR to user ID: {}", user.getUserId());
+
+            // Create Vendor
             vendorService.createVendor(vendorDetails);
             logger.debug("Vendor entity created for user ID: {}", user.getUserId());
         } catch (Exception e) {
-            logger.error("Failed to create vendor entity for user ID: {} due to: {}", user.getUserId(), e.getMessage(), e);
-            throw new ServiceException("VENDOR_CREATION_FAILED", "Failed to create vendor entity");
+            logger.error("Failed to complete vendor creation for user ID: {} due to: {}", user.getUserId(), e.getMessage(), e);
+            // Rethrow exception to trigger transaction rollback
+            if (e instanceof ServiceException) {
+                throw e; // Propagate ServiceException as is
+            }
+            throw new ServiceException("VENDOR_CREATION_FAILED", "Failed to create vendor: " + e.getMessage());
         }
 
+        // Prepare response
         VendorCreationDTO responseDTO = new VendorCreationDTO();
         responseDTO.setEmail(user.getEmail());
         responseDTO.setUsername(user.getUsername());
