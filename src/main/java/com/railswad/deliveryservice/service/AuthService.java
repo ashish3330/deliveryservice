@@ -12,6 +12,7 @@ import com.railswad.deliveryservice.repository.RoleRepository;
 import com.railswad.deliveryservice.repository.UserRepository;
 import com.railswad.deliveryservice.repository.UserRoleRepository;
 import com.railswad.deliveryservice.util.JwtUtil;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -355,6 +356,13 @@ public class AuthService implements UserDetailsService {
             throw new ServiceException("VENDOR_CREATION_FAILED", "Failed to create vendor entity");
         }
 
+        VendorCreationDTO responseDTO = getVendorCreationDTO(vendorDTO, user);
+        logger.info("Vendor created successfully with email: {}", vendorDTO.getEmail());
+        return responseDTO;
+    }
+
+    @NotNull
+    private static VendorCreationDTO getVendorCreationDTO(VendorCreationDTO vendorDTO, User user) {
         VendorCreationDTO responseDTO = new VendorCreationDTO();
         responseDTO.setEmail(user.getEmail());
         responseDTO.setUsername(user.getUsername());
@@ -370,7 +378,6 @@ public class AuthService implements UserDetailsService {
         responseDTO.setVerified(vendorDTO.getVerified());
         responseDTO.setRating(vendorDTO.getRating());
         responseDTO.setActiveStatus(vendorDTO.getActiveStatus());
-        logger.info("Vendor created successfully with email: {}", vendorDTO.getEmail());
         return responseDTO;
     }
 
