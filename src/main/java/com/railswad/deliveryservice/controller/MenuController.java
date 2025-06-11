@@ -46,21 +46,21 @@ public class MenuController {
     private MenuItemRepository menuItemRepository;
 
     @PostMapping("/categories")
-    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR')")
+//    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR')")
     public ResponseEntity<MenuCategoryDTO> createMenuCategory(@RequestBody MenuCategoryDTO categoryDTO) {
         logger.info("Received request to create menu category for vendor ID: {}", categoryDTO.getVendorId());
         return ResponseEntity.ok(menuService.createMenuCategory(categoryDTO));
     }
 
     @PutMapping("/categories/{categoryId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR')")
+//    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR')")
     public ResponseEntity<MenuCategoryDTO> updateMenuCategory(@PathVariable Long categoryId, @RequestBody MenuCategoryDTO categoryDTO) {
         logger.info("Received request to update menu category ID: {}", categoryId);
         return ResponseEntity.ok(menuService.updateMenuCategory(categoryId, categoryDTO));
     }
 
     @DeleteMapping("/categories/{categoryId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR')")
+//    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR')")
     public ResponseEntity<Void> deleteMenuCategory(@PathVariable Long categoryId) {
         logger.info("Received request to delete menu category ID: {}", categoryId);
         menuService.deleteMenuCategory(categoryId);
@@ -68,21 +68,21 @@ public class MenuController {
     }
 
     @PostMapping("/items")
-    @PreAuthorize("hasAnyRole('ADMIN')")
+//    @PreAuthorize("hasAnyRole('ADMIN')")
     public ResponseEntity<MenuItemDTO> createMenuItem(@RequestBody MenuItemDTO itemDTO) {
         logger.info("Received request to create menu item for category ID: {}", itemDTO.getCategoryId());
         return ResponseEntity.ok(menuService.createMenuItem(itemDTO));
     }
 
     @PutMapping("/items/{itemId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR')")
+//    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR')")
     public ResponseEntity<MenuItemDTO> updateMenuItem(@PathVariable Long itemId, @RequestBody MenuItemDTO itemDTO) {
         logger.info("Received request to update menu item ID: {}", itemId);
         return ResponseEntity.ok(menuService.updateMenuItem(itemId, itemDTO));
     }
 
     @DeleteMapping("/items/{itemId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR')")
+//    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR')")
     public ResponseEntity<Void> deleteMenuItem(@PathVariable Long itemId) {
         logger.info("Received request to delete menu item ID: {}", itemId);
         menuService.deleteMenuItem(itemId);
@@ -108,7 +108,7 @@ public class MenuController {
     }
 
     @PostMapping("/upload")
-    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR')")
+//    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR')")
     public ResponseEntity<String> uploadExcelFile(
             @RequestParam("file") MultipartFile file,
             @RequestParam("vendorId") Long vendorId,

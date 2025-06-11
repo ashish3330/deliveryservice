@@ -28,14 +28,14 @@ public class PaymentController {
     }
 
     @PostMapping("/create-order/{orderId}")
-    @PreAuthorize("hasRole('CUSTOMER')")
+//    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<String> createOrder(@PathVariable Long orderId) throws Exception {
         String razorpayOrderId = paymentService.createRazorpayOrder(orderId);
         return ResponseEntity.ok(razorpayOrderId);
     }
 
     @PostMapping("/verify-payment/{orderId}")
-    @PreAuthorize("hasRole('CUSTOMER')")
+//    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<String> verifyPayment(
             @PathVariable Long orderId,
             @RequestBody Map<String, String> paymentDetails) throws Exception {
@@ -48,7 +48,7 @@ public class PaymentController {
     }
 
     @GetMapping("/invoice/{orderId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR', 'CUSTOMER')")
+//    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR', 'CUSTOMER')")
     public ResponseEntity<byte[]> getInvoice(@PathVariable Long orderId) {
         Invoice invoice = invoiceRepository.findByOrderOrderId(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found"));

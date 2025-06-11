@@ -19,13 +19,13 @@ public class OrderController {
     private OrderService orderService;
 
     @PostMapping
-    @PreAuthorize("hasRole('CUSTOMER')")
+//    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<OrderDTO> createOrder(@RequestBody OrderDTO orderDTO) {
         return ResponseEntity.ok(orderService.createOrder(orderDTO));
     }
 
     @PutMapping("/{orderId}/status")
-    @PreAuthorize("hasRole('VENDOR')")
+//    @PreAuthorize("hasRole('VENDOR')")
     public ResponseEntity<OrderDTO> updateOrderStatus(
             @PathVariable Long orderId,
             @RequestParam OrderStatus status,
@@ -35,7 +35,7 @@ public class OrderController {
     }
 
     @PostMapping("/{orderId}/cod/complete")
-    @PreAuthorize("hasRole('VENDOR')")
+//    @PreAuthorize("hasRole('VENDOR')")
     public ResponseEntity<String> markCodPaymentCompleted(
             @PathVariable Long orderId,
             @RequestParam Long updatedById,
@@ -45,13 +45,13 @@ public class OrderController {
     }
 
     @GetMapping("/{orderId}")
-    @PreAuthorize("hasAnyRole('CUSTOMER', 'VENDOR', 'ADMIN')")
+//    @PreAuthorize("hasAnyRole('CUSTOMER', 'VENDOR', 'ADMIN')")
     public ResponseEntity<OrderDTO> getOrderById(@PathVariable Long orderId) {
         return ResponseEntity.ok(orderService.getOrderById(orderId));
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+//    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<OrderDTO>> getAllOrders(Pageable pageable,OrderFilterDTO orderFilterDTO) {
         return ResponseEntity.ok(orderService.getAllOrders(orderFilterDTO,pageable));
     }
