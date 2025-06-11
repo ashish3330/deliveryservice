@@ -30,19 +30,19 @@ public class StationController {
     private ExcelHelper excelHelper;
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<StationDTO> createStation(@RequestBody StationDTO stationDTO) {
         return ResponseEntity.ok(stationService.createStation(stationDTO));
     }
 
     @PutMapping("/{stationId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<StationDTO> updateStation(@PathVariable Integer stationId, @RequestBody StationDTO stationDTO) {
         return ResponseEntity.ok(stationService.updateStation(stationId, stationDTO));
     }
 
     @DeleteMapping("/{stationId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<Void> deleteStation(@PathVariable Integer stationId) {
         stationService.deleteStation(stationId);
         return ResponseEntity.noContent().build();
@@ -76,6 +76,9 @@ public class StationController {
             @RequestParam(required = false) String state) {
         return stationService.getStations(stationName, stationCode, state);
     }
+
+
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     @PostMapping("/bulk-upload")
     public ResponseEntity<?> bulkUploadStations(@RequestParam("file") MultipartFile file) {
         logger.info("Received bulk upload request for file: {}", file.getOriginalFilename());

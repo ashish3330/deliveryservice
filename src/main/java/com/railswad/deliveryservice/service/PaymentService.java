@@ -8,6 +8,7 @@ import com.railswad.deliveryservice.repository.InvoiceRepository;
 import com.railswad.deliveryservice.repository.OrderRepository;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
+import lombok.Getter;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -40,6 +41,7 @@ public class PaymentService {
     @Value("${razorpay.company-address}")
     private String companyAddress;
 
+    @Getter
     @Value("${razorpay.gst-rate}")
     private double gstRate;
 
@@ -54,10 +56,6 @@ public class PaymentService {
         this.razorpayClient = razorpayClient;
         this.orderRepository = orderRepository;
         this.invoiceRepository = invoiceRepository;
-    }
-
-    public double getGstRate() {
-        return gstRate;
     }
 
     @Transactional
