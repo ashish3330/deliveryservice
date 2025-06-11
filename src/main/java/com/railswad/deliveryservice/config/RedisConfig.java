@@ -1,5 +1,6 @@
 package com.railswad.deliveryservice.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
@@ -12,15 +13,21 @@ import java.time.Duration;
 @Configuration
 public class RedisConfig {
 
+    @Value("${spring.redis.host}")
+    private String redisHost;
+
+    @Value("${spring.redis.port}")
+    private int redisPort;
+
     @Bean
     public JedisConnectionFactory jedisConnectionFactory() {
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
-        config.setHostName("172.17.0.1"); // or VPS IP if remote
-        config.setPort(6379);
+        config.setHostName(redisHost);
+        config.setPort(redisPort);
 
         JedisClientConfiguration jedisClientConfiguration = JedisClientConfiguration.builder()
-                .connectTimeout(Duration.ofSeconds(5)) // connection timeout
-                .readTimeout(Duration.ofSeconds(5))    // read timeout
+                .connectTimeout(Duration.ofSeconds(5))
+                .readTimeout(Duration.ofSeconds(5))
                 .usePooling()
                 .build();
 
