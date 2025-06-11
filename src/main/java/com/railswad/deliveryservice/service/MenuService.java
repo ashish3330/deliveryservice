@@ -19,6 +19,9 @@ import com.railswad.deliveryservice.util.ExcelHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
@@ -94,6 +97,7 @@ public class MenuService {
     }
 
     @Transactional
+    @CacheEvict(value = {"vendorMenu", "availableMenuItems"}, key = "#categoryDTO.vendorId", allEntries = false)
     public MenuCategoryDTO createMenuCategory(MenuCategoryDTO categoryDTO) {
         logger.info("Creating menu category for vendor ID: {}", categoryDTO.getVendorId());
         validateMenuCategoryDTO(categoryDTO);
@@ -123,6 +127,7 @@ public class MenuService {
     }
 
     @Transactional
+    @CacheEvict(value = {"vendorMenu", "availableMenuItems"}, key = "#categoryDTO.vendorId", allEntries = false)
     public MenuCategoryDTO updateMenuCategory(Long categoryId, MenuCategoryDTO categoryDTO) {
         logger.info("Updating menu category ID: {}", categoryId);
         if (categoryId == null) {
@@ -154,6 +159,7 @@ public class MenuService {
         }
     }
 
+    @CacheEvict(value = {"vendorMenu", "availableMenuItems"}, allEntries = true) // Can't resolve vendorId here
     @Transactional
     public void deleteMenuCategory(Long categoryId) {
         logger.info("Deleting menu category ID: {}", categoryId);
@@ -180,6 +186,11 @@ public class MenuService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "menuItems", allEntries = true),
+            @CacheEvict(value = "vendorMenu", key = "#itemDTO.vendorId", condition = "#itemDTO.vendorId != null"),
+            @CacheEvict(value = "availableMenuItems", key = "#itemDTO.vendorId", condition = "#itemDTO.vendorId != null")
+    })
     public MenuItemDTO createMenuItem(MenuItemDTO itemDTO) {
         logger.info("Creating menu item for category ID: {}", itemDTO.getCategoryId());
         validateMenuItemDTO(itemDTO);
@@ -229,6 +240,11 @@ public class MenuService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "menuItems", key = "#itemId"),
+            @CacheEvict(value = "vendorMenu", key = "#category.getVendor().vendorId", condition = "#category != null"),
+            @CacheEvict(value = "availableMenuItems", key = "#category.getVendor().vendorId", condition = "#category != null")
+    })
     public MenuItemDTO updateMenuItem(Long itemId, MenuItemDTO itemDTO) {
         logger.info("Updating menu item ID: {}", itemId);
         if (itemId == null) {
@@ -283,6 +299,11 @@ public class MenuService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "menuItems", key = "#itemId"),
+            @CacheEvict(value = "vendorMenu", key = "#vendor.vendorId", condition = "#vendor != null"),
+            @CacheEvict(value = "availableMenuItems", key = "#vendor.vendorId", condition = "#vendor != null")
+    })
     public void deleteMenuItem(Long itemId) {
         logger.info("Deleting menu item ID: {}", itemId);
         if (itemId == null) {
@@ -313,6 +334,8 @@ public class MenuService {
         }
     }
 
+
+    @Cacheable(value = "menuItems", key = "#itemId")
     public MenuItemDTO getMenuItemById(Long itemId) {
         logger.info("Fetching menu item with ID: {}", itemId);
         if (itemId == null) {
@@ -344,6 +367,8 @@ public class MenuService {
         logger.debug("Fetched menu item ID: {}", itemId);
         return itemDTO;
     }
+
+    @Cacheable(value = "availableMenuItems", key = "#vendorId")
 
     public List<MenuItemDTO> getAvailableMenuItemsByVendor(Long vendorId) {
         logger.info("Fetching available menu items for vendor ID: {}", vendorId);
@@ -410,6 +435,7 @@ public class MenuService {
         }
     }
 
+    @Cacheable(value = "vendorMenu", key = "#vendorId")
     public Map<String, List<MenuItemDTO>> getMenuByVendor(Long vendorId) {
         logger.info("Fetching full menu for vendor ID: {}", vendorId);
         if (vendorId == null) {
@@ -457,6 +483,11 @@ public class MenuService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "vendorMenu", key = "#vendorId"),
+            @CacheEvict(value = "availableMenuItems", key = "#vendorId"),
+            @CacheEvict(value = "menuItems", allEntries = true)
+    })
     public String uploadMenuItems(MultipartFile file, Long vendorId, boolean clearExisting) {
         logger.info("Starting menu upload for vendor ID: {}, clearExisting: {}", vendorId, clearExisting);
         if (file == null || file.isEmpty()) {
