@@ -32,7 +32,9 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -179,26 +181,25 @@ public class MenuService {
 
     @Transactional
     public MenuItemDTO createMenuItem(MenuItemDTO itemDTO) {
-        logger.info("Creating menu item for category: {}", itemDTO.getCategoryName());
+        logger.info("Creating menu item for category ID: {}", itemDTO.getCategoryId());
         validateMenuItemDTO(itemDTO);
 
-        Vendor vendor = vendorRepository.findById(getVendorIdForCategory(itemDTO.getCategoryName()))
+        if (itemDTO.getCategoryId() == null) {
+            logger.warn("Invalid menu item: categoryId is null");
+            throw new InvalidInputException("Category ID is required");
+        }
+
+        MenuCategory category = menuCategoryRepository.findById(itemDTO.getCategoryId())
                 .orElseThrow(() -> {
-                    logger.warn("Vendor not found for category: {}", itemDTO.getCategoryName());
-                    return new ResourceNotFoundException("Vendor not found for category: " + itemDTO.getCategoryName());
+                    logger.warn("Menu category not found with id: {}", itemDTO.getCategoryId());
+                    return new ResourceNotFoundException("Menu category not found with id: " + itemDTO.getCategoryId());
                 });
 
-        checkAuthorization(vendor.getVendorId());
-
-        MenuCategory category = menuCategoryRepository.findByVendorAndCategoryName(vendor, itemDTO.getCategoryName())
-                .orElseThrow(() -> {
-                    logger.warn("Menu category not found: {}", itemDTO.getCategoryName());
-                    return new ResourceNotFoundException("Menu category not found: " + itemDTO.getCategoryName());
-                });
+        checkAuthorization(category.getVendor().getVendorId());
 
         if (menuItemRepository.findByCategoryAndItemName(category, itemDTO.getItemName()).isPresent()) {
-            logger.warn("Duplicate menu item '{}' in category '{}'", itemDTO.getItemName(), itemDTO.getCategoryName());
-            throw new InvalidInputException("Menu item '" + itemDTO.getItemName() + "' already exists in category '" + itemDTO.getCategoryName() + "'");
+            logger.warn("Duplicate menu item '{}' in category ID: {}", itemDTO.getItemName(), itemDTO.getCategoryId());
+            throw new InvalidInputException("Menu item '" + itemDTO.getItemName() + "' already exists in category ID: " + itemDTO.getCategoryId());
         }
 
         MenuItem item = new MenuItem();
@@ -222,7 +223,7 @@ public class MenuService {
             logger.info("Menu item created with ID: {}", savedItem.getItemId());
             return itemDTO;
         } catch (Exception e) {
-            logger.error("Failed to create menu item for category: {} due to: {}", itemDTO.getCategoryName(), e.getMessage(), e);
+            logger.error("Failed to create menu item for category ID: {} due to: {}", itemDTO.getCategoryId(), e.getMessage(), e);
             throw new ServiceException("MENU_ITEM_CREATION_FAILED", "Failed to create menu item");
         }
     }
@@ -242,24 +243,18 @@ public class MenuService {
                     return new ResourceNotFoundException("Menu item not found with id: " + itemId);
                 });
 
-        Vendor vendor = vendorRepository.findById(getVendorIdForCategory(itemDTO.getCategoryName()))
+        MenuCategory category = menuCategoryRepository.findById(itemDTO.getCategoryId())
                 .orElseThrow(() -> {
-                    logger.warn("Vendor not found for category: {}", itemDTO.getCategoryName());
-                    return new ResourceNotFoundException("Vendor not found for category: " + itemDTO.getCategoryName());
+                    logger.warn("Menu category not found with id: {}", itemDTO.getCategoryId());
+                    return new ResourceNotFoundException("Menu category not found with id: " + itemDTO.getCategoryId());
                 });
 
-        checkAuthorization(vendor.getVendorId());
-
-        MenuCategory category = menuCategoryRepository.findByVendorAndCategoryName(vendor, itemDTO.getCategoryName())
-                .orElseThrow(() -> {
-                    logger.warn("Menu category not found: {}", itemDTO.getCategoryName());
-                    return new ResourceNotFoundException("Menu category not found: " + itemDTO.getCategoryName());
-                });
+        checkAuthorization(category.getVendor().getVendorId());
 
         if (!item.getItemName().equals(itemDTO.getItemName()) &&
                 menuItemRepository.findByCategoryAndItemName(category, itemDTO.getItemName()).isPresent()) {
-            logger.warn("Duplicate menu item '{}' in category '{}'", itemDTO.getItemName(), itemDTO.getCategoryName());
-            throw new InvalidInputException("Menu item '" + itemDTO.getItemName() + "' already exists in category '" + itemDTO.getCategoryName() + "'");
+            logger.warn("Duplicate menu item '{}' in category ID: {}", itemDTO.getItemName(), itemDTO.getCategoryId());
+            throw new InvalidInputException("Menu item '" + itemDTO.getItemName() + "' already exists in category ID: " + itemDTO.getCategoryId());
         }
 
         item.setCategory(category);
@@ -333,7 +328,7 @@ public class MenuService {
 
         MenuItemDTO itemDTO = new MenuItemDTO();
         itemDTO.setItemId(item.getItemId());
-        itemDTO.setCategoryName(item.getCategory().getCategoryName());
+        itemDTO.setCategoryId(item.getCategory().getCategoryId());
         itemDTO.setItemName(item.getItemName());
         itemDTO.setDescription(item.getDescription());
         itemDTO.setBasePrice(item.getBasePrice());
@@ -370,7 +365,7 @@ public class MenuService {
         return items.stream().map(item -> {
             MenuItemDTO itemDTO = new MenuItemDTO();
             itemDTO.setItemId(item.getItemId());
-            itemDTO.setCategoryName(item.getCategory().getCategoryName());
+            itemDTO.setCategoryId(item.getCategory().getCategoryId());
             itemDTO.setItemName(item.getItemName());
             itemDTO.setDescription(item.getDescription());
             itemDTO.setBasePrice(item.getBasePrice());
@@ -412,6 +407,52 @@ public class MenuService {
         } catch (Exception e) {
             logger.error("Failed to fetch menu categories for vendor ID: {} due to: {}", vendorId, e.getMessage(), e);
             throw new ServiceException("MENU_CATEGORY_FETCH_FAILED", "Failed to fetch menu categories");
+        }
+    }
+
+    public Map<String, List<MenuItemDTO>> getMenuByVendor(Long vendorId) {
+        logger.info("Fetching full menu for vendor ID: {}", vendorId);
+        if (vendorId == null) {
+            logger.warn("Invalid fetch request: vendorId is null");
+            throw new InvalidInputException("Vendor ID is required");
+        }
+
+        Vendor vendor = vendorRepository.findById(vendorId)
+                .orElseThrow(() -> {
+                    logger.error("Vendor ID {} not found", vendorId);
+                    return new ResourceNotFoundException("Vendor ID " + vendorId + " not found");
+                });
+
+        List<MenuCategory> categories = menuCategoryRepository.findByVendorVendorId(vendorId);
+        Map<String, List<MenuItemDTO>> menu = new HashMap<>();
+
+        try {
+            for (MenuCategory category : categories) {
+                List<MenuItem> items = menuItemRepository.findByCategory(category);
+                List<MenuItemDTO> itemDTOs = items.stream().map(item -> {
+                    MenuItemDTO dto = new MenuItemDTO();
+                    dto.setItemId(item.getItemId());
+                    dto.setCategoryId(item.getCategory().getCategoryId());
+                    dto.setItemName(item.getItemName());
+                    dto.setDescription(item.getDescription());
+                    dto.setBasePrice(item.getBasePrice());
+                    dto.setVendorPrice(item.getVendorPrice());
+                    dto.setVegetarian(item.isVegetarian());
+                    dto.setAvailable(item.isAvailable());
+                    dto.setPreparationTimeMin(item.getPreparationTimeMin());
+                    dto.setImageUrl(item.getImageUrl());
+                    dto.setDisplayOrder(item.getDisplayOrder());
+                    dto.setAvailableStartTime(item.getAvailableStartTime());
+                    dto.setAvailableEndTime(item.getAvailableEndTime());
+                    return dto;
+                }).collect(Collectors.toList());
+                menu.put(category.getCategoryName(), itemDTOs);
+            }
+            logger.info("Fetched menu with {} categories for vendor ID: {}", menu.size(), vendorId);
+            return menu;
+        } catch (Exception e) {
+            logger.error("Failed to fetch menu for vendor ID: {} due to: {}", vendorId, e.getMessage(), e);
+            throw new ServiceException("MENU_FETCH_FAILED", "Failed to fetch menu for vendor");
         }
     }
 
@@ -534,10 +575,6 @@ public class MenuService {
             logger.warn("Invalid menu item: DTO is null");
             throw new InvalidInputException("Menu item data is required");
         }
-        if (!StringUtils.hasText(itemDTO.getCategoryName())) {
-            logger.warn("Invalid menu item: categoryName is null or empty");
-            throw new InvalidInputException("Category name is required");
-        }
         if (!StringUtils.hasText(itemDTO.getItemName())) {
             logger.warn("Invalid menu item: itemName is empty");
             throw new InvalidInputException("Item name is required");
@@ -581,14 +618,5 @@ public class MenuService {
                 throw new InvalidInputException("Base price must be greater than vendor price at row " + rowNumber);
             }
         }
-    }
-
-    private Long getVendorIdForCategory(String categoryName) {
-        MenuCategory category = menuCategoryRepository.findByCategoryName(categoryName)
-                .orElseThrow(() -> {
-                    logger.warn("Category not found: {}", categoryName);
-                    return new ResourceNotFoundException("Category not found: " + categoryName);
-                });
-        return category.getVendor().getVendorId();
     }
 }

@@ -1,24 +1,27 @@
 package com.railswad.deliveryservice.dto;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalTime;
 
-@Data
+@Getter
+@Setter
 public class MenuItemDTO {
     private Long itemId;
-    private String categoryName; // References MenuCategory.categoryName
+    private Long categoryId;
+    private String categoryName;
     private String itemName;
     private String description;
-    private BigDecimal basePrice; // Base price set by platform
-    private BigDecimal vendorPrice; // Vendor-specific price (optional)
+    private BigDecimal basePrice;
+    private BigDecimal vendorPrice;
     private boolean vegetarian;
-    private boolean available;
+    private boolean available = true;
     private Integer preparationTimeMin;
     private String imageUrl;
     private Integer displayOrder;
     private LocalTime availableStartTime;
     private LocalTime availableEndTime;
-    private String itemCategory; // Item-specific category (e.g., Gravy, Snack)
+    private String itemCategory;
 }

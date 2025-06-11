@@ -5,6 +5,7 @@ import com.railswad.deliveryservice.dto.MenuItemDTO;
 import com.railswad.deliveryservice.entity.MenuCategory;
 import com.railswad.deliveryservice.entity.MenuItem;
 import com.railswad.deliveryservice.entity.Vendor;
+import com.railswad.deliveryservice.exception.ResourceNotFoundException;
 import com.railswad.deliveryservice.repository.MenuCategoryRepository;
 import com.railswad.deliveryservice.repository.MenuItemRepository;
 import com.railswad.deliveryservice.repository.VendorRepository;
@@ -69,7 +70,7 @@ public class MenuController {
     @PostMapping("/items")
     @PreAuthorize("hasAnyRole('ADMIN')")
     public ResponseEntity<MenuItemDTO> createMenuItem(@RequestBody MenuItemDTO itemDTO) {
-        logger.info("Received request to create menu item for category ID: {}", itemDTO.getCategoryName());
+        logger.info("Received request to create menu item for category ID: {}", itemDTO.getCategoryId());
         return ResponseEntity.ok(menuService.createMenuItem(itemDTO));
     }
 
@@ -126,36 +127,15 @@ public class MenuController {
     @GetMapping("/vendors/{vendorId}/menu")
     public ResponseEntity<?> getMenuByVendor(@PathVariable Long vendorId) {
         logger.info("Received request to fetch full menu for vendor ID: {}", vendorId);
-        Optional<Vendor> vendorOpt = vendorRepository.findById(vendorId);
-        if (!vendorOpt.isPresent()) {
+        try {
+            Map<String, List<MenuItemDTO>> menu = menuService.getMenuByVendor(vendorId);
+            return ResponseEntity.ok(menu);
+        } catch (ResourceNotFoundException e) {
             logger.error("Vendor ID {} not found", vendorId);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Vendor ID " + vendorId + " not found");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            logger.error("Failed to fetch menu for vendor ID: {}: {}", vendorId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to fetch menu: " + e.getMessage());
         }
-        List<MenuCategory> categories = menuCategoryRepository.findByVendorVendorId(vendorId);
-        Map<String, List<MenuItemDTO>> menu = new HashMap<>();
-        for (MenuCategory category : categories) {
-            List<MenuItem> items = menuItemRepository.findByCategory(category);
-            List<MenuItemDTO> itemDTOs = items.stream().map(item -> {
-                MenuItemDTO dto = new MenuItemDTO();
-                dto.setItemId(item.getItemId());
-                dto.setCategoryName(item.getCategory().getCategoryName());
-                dto.setCategoryName(item.getCategory().getCategoryName());
-                dto.setItemName(item.getItemName());
-                dto.setDescription(item.getDescription());
-                dto.setBasePrice(item.getBasePrice());
-                dto.setVendorPrice(item.getVendorPrice());
-                dto.setVegetarian(item.isVegetarian());
-                dto.setAvailable(item.isAvailable());
-                dto.setPreparationTimeMin(item.getPreparationTimeMin());
-                dto.setImageUrl(item.getImageUrl());
-                dto.setDisplayOrder(item.getDisplayOrder());
-                dto.setAvailableStartTime(item.getAvailableStartTime());
-                dto.setAvailableEndTime(item.getAvailableEndTime());
-                return dto;
-            }).collect(Collectors.toList());
-            menu.put(category.getCategoryName(), itemDTOs);
-        }
-        logger.info("Fetched menu with {} categories for vendor ID: {}", menu.size(), vendorId);
-        return ResponseEntity.ok(menu);
     }
 }
