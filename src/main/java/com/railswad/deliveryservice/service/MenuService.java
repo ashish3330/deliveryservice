@@ -188,8 +188,8 @@ public class MenuService {
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = "menuItems", allEntries = true),
-            @CacheEvict(value = "vendorMenu", key = "#itemDTO.vendorId", condition = "#itemDTO.vendorId != null"),
-            @CacheEvict(value = "availableMenuItems", key = "#itemDTO.vendorId", condition = "#itemDTO.vendorId != null")
+            @CacheEvict(value = "vendorMenu", key = "#result.categoryId != null ? @menuCategoryRepository.findById(#result.categoryId).get().vendor.vendorId : null", condition = "#result.categoryId != null"),
+            @CacheEvict(value = "availableMenuItems", key = "#result.categoryId != null ? @menuCategoryRepository.findById(#result.categoryId).get().vendor.vendorId : null", condition = "#result.categoryId != null")
     })
     public MenuItemDTO createMenuItem(MenuItemDTO itemDTO) {
         logger.info("Creating menu item for category ID: {}", itemDTO.getCategoryId());
