@@ -342,7 +342,7 @@ public class AuthService implements UserDetailsService {
         }
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @PreAuthorize("hasRole('ADMIN')")
     public VendorCreationDTO createVendor(VendorCreationDTO vendorDTO, String ipAddress, String deviceInfo) {
         logger.info("Admin attempting to create vendor with email: {}", vendorDTO.getEmail());
