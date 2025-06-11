@@ -1,17 +1,5 @@
 version: '3.8'
 services:
-  dev-db:
-
-    image: postgres:15-alpine
-    container_name: dev-db
-    environment:
-      POSTGRES_USER: devuser
-      POSTGRES_PASSWORD: devpassword
-      POSTGRES_DB: dev_railswad_db
-    ports:
-      - "5433:5432"
-    volumes:
-      - dev_data:/var/lib/postgresql/data
   prod-db:
     image: postgres:15-alpine
     container_name: prod-db
@@ -23,27 +11,26 @@ services:
       - "5434:5432"
     volumes:
       - prod_data:/var/lib/postgresql/data
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@railswad.com
-      PGADMIN_DEFAULT_PASSWORD: adminpassword
-    ports:
-      - "5050:80"
-    depends_on:
-      - dev-db
-      - prod-db
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "produser"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
   app:
-    build: .
+    image: deliveryservice-app
     container_name: deliveryservice
     ports:
       - "8080:8080"
     environment:
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: prod
     depends_on:
-      - dev-db
-      - prod-db
+      prod-db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 volumes:
-  dev_data:
   prod_data:
