@@ -91,7 +91,7 @@ public class AuthController {
     }
 
     @PostMapping("/create-vendor")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<?> createVendor(@Valid @RequestBody VendorCreationDTO vendorCreationDTO, HttpServletRequest request) {
         try {
             String ipAddress = request.getRemoteAddr();
