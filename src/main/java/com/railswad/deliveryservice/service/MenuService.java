@@ -435,7 +435,6 @@ public class MenuService {
         }
     }
 
-    @Cacheable(value = "vendorMenu", key = "#vendorId")
     public Map<String, List<MenuItemDTO>> getMenuByVendor(Long vendorId) {
         logger.info("Fetching full menu for vendor ID: {}", vendorId);
         if (vendorId == null) {
