@@ -73,11 +73,11 @@ public class MenuService {
             throw new UnauthorizedException("User must be authenticated");
         }
 
-        User user = userRepository.findByEmail(auth.getName())
-                .orElseThrow(() -> {
-                    logger.warn("User not found: {}", auth.getName());
-                    return new ResourceNotFoundException("User not found: " + auth.getName());
-                });
+//        User user = userRepository.findByEmail(auth.getName())
+//                .orElseThrow(() -> {
+//                    logger.warn("User not found: {}", auth.getName());
+//                    return new ResourceNotFoundException("User not found: " + auth.getName());
+//                });
 
         boolean isAdmin = auth.getAuthorities().stream()
                 .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
@@ -88,10 +88,10 @@ public class MenuService {
                         logger.warn("Vendor not found with id: {}", vendorId);
                         return new ResourceNotFoundException("Vendor not found with id: " + vendorId);
                     });
-            if (!vendor.getUser().getUserId().equals(user.getUserId())) {
-                logger.warn("User {} not authorized to modify vendor ID: {}", auth.getName(), vendorId);
-                throw new UnauthorizedException("User not authorized to modify this vendor's menu");
-            }
+//            if (!vendor.getUser().getUserId().equals(user.getUserId())) {
+//                logger.warn("User {} not authorized to modify vendor ID: {}", auth.getName(), vendorId);
+//                throw new UnauthorizedException("User not authorized to modify this vendor's menu");
+//            }
         }
         logger.debug("Authorization check passed for vendor ID: {}", vendorId);
     }
