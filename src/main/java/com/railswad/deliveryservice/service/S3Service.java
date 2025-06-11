@@ -43,53 +43,42 @@ public class S3Service {
                 .build();
         s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(
                 file.getInputStream(), file.getSize()));
-        String fileUrl = generatePresignedUrl(systemFileName);
+
+        // Generate clean URL instead of pre-signed URL
+        String cleanUrl = generateCleanUrl(systemFileName);
 
         FileEntity fileEntity = new FileEntity();
         fileEntity.setOriginalFileName(file.getOriginalFilename());
         fileEntity.setSystemFileName(systemFileName);
-        fileEntity.setFileUrl(fileUrl);
+        fileEntity.setFileUrl(cleanUrl); // Store clean URL
         fileEntity.setContentType(file.getContentType());
         fileEntity.setFileSize(file.getSize());
         fileEntity.setUploadDate(LocalDateTime.now());
         fileRepository.save(fileEntity);
 
-        return fileUrl;
+        return cleanUrl; // Return clean URL
     }
 
     public byte[] getFileBinaryDataByUrl(String fileUrl) {
-        // Try to fetch binary data using the provided pre-signed URL
+        // Extract systemFileName from clean URL
+        String systemFileName = extractSystemFileName(fileUrl);
+
+        // Generate a fresh pre-signed URL
+        String presignedUrl = generatePresignedUrl(systemFileName);
+
+        // Fetch binary data using the pre-signed URL
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-            HttpGet request = new HttpGet(fileUrl);
+            HttpGet request = new HttpGet(presignedUrl);
             try (CloseableHttpResponse response = httpClient.execute(request)) {
                 int statusCode = response.getStatusLine().getStatusCode();
                 if (statusCode == 200) {
                     return EntityUtils.toByteArray(response.getEntity());
-                } else if (statusCode == 403 || statusCode == 404) {
-                    // URL likely expired, find the file entity by file_url
-                    FileEntity fileEntity = fileRepository.findByFileUrl(fileUrl)
-                            .orElseThrow(() -> new RuntimeException("File not found with URL: " + fileUrl));
-
-                    // Generate a fresh pre-signed URL
-                    String freshUrl = generatePresignedUrl(fileEntity.getSystemFileName());
-                    fileEntity.setFileUrl(freshUrl);
-                    fileRepository.save(fileEntity); // Update the stored URL
-
-                    // Retry with the fresh URL
-                    HttpGet retryRequest = new HttpGet(freshUrl);
-                    try (CloseableHttpResponse retryResponse = httpClient.execute(retryRequest)) {
-                        if (retryResponse.getStatusLine().getStatusCode() == 200) {
-                            return EntityUtils.toByteArray(retryResponse.getEntity());
-                        } else {
-                            throw new RuntimeException("Failed to fetch file with fresh URL, status: " + retryResponse.getStatusLine().getStatusCode());
-                        }
-                    }
                 } else {
                     throw new RuntimeException("Failed to fetch file, status: " + statusCode);
                 }
             }
         } catch (IOException e) {
-            throw new RuntimeException("Failed to download file from URL: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to download file: " + e.getMessage(), e);
         }
     }
 
@@ -100,5 +89,16 @@ public class S3Service {
                 .build();
         PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
         return presignedRequest.url().toString();
+    }
+
+    private String generateCleanUrl(String systemFileName) {
+        String endpoint = "https://usc1.contabostorage.com";
+        return String.format("%s/%s/%s", endpoint, bucketName, systemFileName);
+    }
+
+    private String extractSystemFileName(String fileUrl) {
+        // Extract systemFileName from clean URL
+        // Example: https://usc1.contabostorage.com/deliveryservice-image/<systemFileName>
+        return fileUrl.substring(fileUrl.lastIndexOf('/') + 1);
     }
 }
