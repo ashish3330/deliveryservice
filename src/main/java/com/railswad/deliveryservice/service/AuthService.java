@@ -329,7 +329,7 @@ public class AuthService implements UserDetailsService {
         String tokenRole = rawRole.startsWith("ROLE_") ? rawRole.substring(5) : rawRole;
 
         try {
-            String token = jwtService.generateToken(String.valueOf(user.getUserId()), tokenRole);
+            String token = jwtService.generateToken(String.valueOf(user.getEmail()), tokenRole);
             user.setLastLogin(ZonedDateTime.now());
             userRepository.save(user);
             return token;
