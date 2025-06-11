@@ -4,7 +4,9 @@ import com.railswad.deliveryservice.dto.StationDTO;
 import com.railswad.deliveryservice.entity.Station;
 import com.railswad.deliveryservice.exception.ResourceNotFoundException;
 import com.railswad.deliveryservice.exception.DuplicateResourceException;
+import com.railswad.deliveryservice.repository.OrderRepository;
 import com.railswad.deliveryservice.repository.StationRepository;
+import com.railswad.deliveryservice.repository.VendorRepository;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -22,6 +24,11 @@ public class StationService {
 
     @Autowired
     private StationRepository stationRepository;
+    @Autowired
+    private VendorRepository vendorRepository;
+
+    @Autowired
+    private OrderRepository orderRepository;
 
     public StationDTO createStation(StationDTO stationDTO) {
         // Check if station already exists with same name, city, and code
@@ -129,6 +136,11 @@ public class StationService {
     }
 
     public void deleteStation(Integer stationId) {
+
+
+        if (hasDependencies(stationId)) {
+            throw new IllegalStateException("Cannot delete station with ID " + stationId + " because it is referenced by vendors or orders.");
+        }
         Station station = stationRepository.findById(stationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Station not found with id: " + stationId));
         stationRepository.delete(station);
@@ -257,6 +269,13 @@ public class StationService {
         }
     }
 
+    public boolean hasDependencies(Integer stationId) {
+        // Check if any vendors reference the station
+        long vendorCount = vendorRepository.countByStationStationId(stationId);
+        // Check if any orders reference the station
+        long orderCount = orderRepository.countByDeliveryStationStationId(stationId);
+        return vendorCount > 0 || orderCount > 0;
+    }
 
 
 }

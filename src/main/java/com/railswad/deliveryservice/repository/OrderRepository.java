@@ -95,4 +95,6 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
             @Param("endDate") ZonedDateTime endDate);
 
 
+    long countByDeliveryStationStationId(Integer stationId);
+
 }
