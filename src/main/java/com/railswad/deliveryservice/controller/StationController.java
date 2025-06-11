@@ -35,7 +35,7 @@ public class StationController {
         return ResponseEntity.ok(stationService.createStation(stationDTO));
     }
 
-//    @PutMapping("/{stationId}")
+    @PutMapping("/{stationId}")
 //    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<StationDTO> updateStation(@PathVariable Integer stationId, @RequestBody StationDTO stationDTO) {
         return ResponseEntity.ok(stationService.updateStation(stationId, stationDTO));
