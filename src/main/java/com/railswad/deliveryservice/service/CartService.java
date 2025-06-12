@@ -61,10 +61,6 @@ public class CartService {
         // Validate item belongs to the vendor
         MenuItem menuItem = menuItemRepository.findById(request.getItemId())
                 .orElseThrow(() -> new ResourceNotFoundException("Menu item not found with id: " + request.getItemId()));
-//        if (!menuItem.getVendor().getVendorId().equals(request.getVendorId())) {
-//            logger.warn("Item {} does not belong to vendor {}", request.getItemId(), request.getVendorId());
-//            throw new IllegalArgumentException("Item does not belong to the specified vendor");
-//        }
 
         // Add or update item
         CartItemDTO cartItemDTO = new CartItemDTO();
@@ -153,12 +149,15 @@ public class CartService {
         return cart;
     }
 
-    public void clearCart(String cartId, String vendorId) {
+    public void clearCart(Long customerId, Long vendorId) {
         long startTime = System.currentTimeMillis();
-        logger.info("Clearing cart ID: {}", cartId);
-        CartDTO cart = getCartInternal(cartId);
-        redisTemplate.delete(CART_KEY_PREFIX + cartId);
-        redisTemplate.delete(CART_MAPPING_PREFIX + cart.getCustomerId() + ":" + vendorId);
+        logger.info("Clearing cart for customer ID: {}, vendor ID: {}", customerId, vendorId);
+        String cartId = getCartId(customerId, vendorId);
+        if (cartId == null) {
+            throw new ResourceNotFoundException("No cart found for customer ID: " + customerId + " and vendor ID: " + vendorId);
+        }
+        redisTemplate.delete(CART_KEY_PREFIX+ cartId);
+        redisTemplate.delete(CART_MAPPING_PREFIX + customerId + ":" + vendorId);
         logger.info("Cleared cart ID: {}, took {}ms", cartId, System.currentTimeMillis() - startTime);
     }
 
@@ -191,7 +190,7 @@ public class CartService {
         return redisTemplate.opsForValue().get(CART_MAPPING_PREFIX + customerId + ":" + vendorId);
     }
 
-    private CartDTO getCartInternal(String cartId) {
+    CartDTO getCartInternal(String cartId) {
         String cartJson = redisTemplate.opsForValue().get(CART_KEY_PREFIX + cartId);
         if (cartJson == null) {
             logger.warn("Cart not found in Redis with ID: {}", cartId);
@@ -217,9 +216,6 @@ public class CartService {
     }
 
     private double calculateDeliveryCharges(Long vendorId) {
-//        return vendorRepository.findById(vendorId)
-//                .map(vendor -> vendor.getDeliveryCharge() != null ? vendor.getDeliveryCharge() : DEFAULT_DELIVERY_CHARGE)
-//                .orElse(DEFAULT_DELIVERY_CHARGE);
-        return  0.0;
+        return 0.0;
     }
 }

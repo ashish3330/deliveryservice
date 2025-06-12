@@ -65,7 +65,8 @@ public class OrderService {
         logger.info("Starting order creation from cart ID: {}", cartId);
 
         try {
-            CartDTO cart = cartService.getCart(cartId);
+            // Use internal method to get cart by cartId
+            CartDTO cart = cartService.getCartInternal(cartId);
             logger.debug("Retrieved cart with ID: {} for customer ID: {}", cartId, cart.getCustomerId());
 
             if (cart.getItems() == null || cart.getItems().isEmpty()) {
@@ -98,7 +99,8 @@ public class OrderService {
             order.setPaymentMethod(paymentMethod);
             order.setDeliveryInstructions(cart.getDeliveryInstructions());
 
-            CartSummaryDTO summary = cartService.getCartSummary(cartId);
+            // Use customerId and vendorId to get cart summary
+            CartSummaryDTO summary = cartService.getCartSummary(cart.getCustomerId(), cart.getVendorId());
             order.setTotalAmount(summary.getSubtotal());
             order.setTaxAmount(summary.getTaxAmount());
             order.setDeliveryCharges(summary.getDeliveryCharges());
@@ -142,7 +144,7 @@ public class OrderService {
                 }
             }
 
-            cartService.clearCart(cartId); // Clear cart after successful order creation
+            cartService.clearCart(cart.getCustomerId(), cart.getVendorId()); // Clear cart after successful order creation
             OrderDTO orderDTO = convertToOrderDTO(savedOrder);
             orderDTO.setRazorpayOrderID(razorpayOrderId);
             logger.info("Order created successfully with ID: {}, took {}ms",
