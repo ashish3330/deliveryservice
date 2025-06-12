@@ -22,9 +22,9 @@ public class MenuItemDTO {
     private Integer preparationTimeMin;
     private String imageUrl;
     private Integer displayOrder;
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "HH:mm:ss")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "HH:mm")
     private LocalTime availableStartTime;
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "HH:mm:ss")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "HH:mm")
     private LocalTime availableEndTime;
     private String itemCategory;
 }
