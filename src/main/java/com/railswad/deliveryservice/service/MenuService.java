@@ -110,6 +110,10 @@ public class MenuService {
                     return new ResourceNotFoundException("Vendor not found with id: " + categoryDTO.getVendorId());
                 });
 
+        if (menuCategoryRepository.findByVendorAndCategoryName(vendor, categoryDTO.getCategoryName()).isPresent()) {
+            logger.warn("Category '{}' already exists for vendor ID: {}", categoryDTO.getCategoryName(), categoryDTO.getVendorId());
+            throw new InvalidInputException("Category '" + categoryDTO.getCategoryName() + "' already exists for vendor ID: " + categoryDTO.getVendorId());
+        }
         MenuCategory category = new MenuCategory();
         category.setVendor(vendor);
         category.setCategoryName(categoryDTO.getCategoryName());
@@ -319,11 +323,11 @@ public class MenuService {
     }
 
     @Transactional
-    @Caching(evict = {
-            @CacheEvict(value = "menuItems", key = "#itemId"),
-            @CacheEvict(value = "vendorMenu", key = "#vendor.vendorId", condition = "#vendor != null"),
-            @CacheEvict(value = "availableMenuItems", key = "#vendor.vendorId", condition = "#vendor != null")
-    })
+        @Caching(evict = {
+                @CacheEvict(value = "menuItems", key = "#itemId"),
+                @CacheEvict(value = "vendorMenu", key = "#vendor.vendorId", condition = "#vendor != null"),
+                @CacheEvict(value = "availableMenuItems", key = "#vendor.vendorId", condition = "#vendor != null")
+        })
     public void deleteMenuItem(Long itemId) {
         logger.info("Deleting menu item ID: {}", itemId);
         if (itemId == null) {
@@ -387,8 +391,6 @@ public class MenuService {
         logger.debug("Fetched menu item ID: {}", itemId);
         return itemDTO;
     }
-
-    @Cacheable(value = "availableMenuItems", key = "#vendorId")
 
     public List<MenuItemDTO> getAvailableMenuItemsByVendor(Long vendorId) {
         logger.info("Fetching available menu items for vendor ID: {}", vendorId);
