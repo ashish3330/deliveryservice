@@ -1,5 +1,6 @@
 package com.railswad.deliveryservice.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -21,7 +22,9 @@ public class MenuItemDTO {
     private Integer preparationTimeMin;
     private String imageUrl;
     private Integer displayOrder;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "HH:mm:ss")
     private LocalTime availableStartTime;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "HH:mm:ss")
     private LocalTime availableEndTime;
     private String itemCategory;
 }

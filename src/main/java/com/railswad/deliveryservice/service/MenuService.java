@@ -235,7 +235,7 @@ public class MenuService {
             return itemDTO;
         } catch (Exception e) {
             logger.error("Failed to create menu item for category ID: {} due to: {}", itemDTO.getCategoryId(), e.getMessage(), e);
-            throw new ServiceException("MENU_ITEM_CREATION_FAILED", "Failed to create menu item");
+            throw new ServiceException("MENU_ITEM_CREATION_FAILED", e.getMessage());
         }
     }
 
