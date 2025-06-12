@@ -26,6 +26,7 @@ public class OrderDTO {
     private Double finalAmount;
     private PaymentStatus paymentStatus;
     private String paymentMethod;
+    private String razorpayOrderID;
     private String deliveryInstructions;
     private List<OrderItemDTO> items;
 }

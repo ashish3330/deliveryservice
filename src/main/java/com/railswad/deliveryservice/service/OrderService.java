@@ -1,12 +1,10 @@
 package com.railswad.deliveryservice.service;
 
-import com.railswad.deliveryservice.dto.OrderDTO;
-import com.railswad.deliveryservice.dto.OrderFilterDTO;
-import com.railswad.deliveryservice.dto.OrderItemDTO;
-import com.railswad.deliveryservice.dto.OrderSpecification;
+import com.railswad.deliveryservice.dto.*;
 import com.railswad.deliveryservice.entity.*;
 import com.railswad.deliveryservice.exception.ResourceNotFoundException;
 import com.railswad.deliveryservice.repository.*;
+import com.razorpay.RazorpayException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,72 +53,65 @@ public class OrderService {
     @Autowired
     private PaymentService paymentService;
 
+    @Autowired
+    private CartService cartService;
+
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = "orders", key = "#result.orderId", condition = "#result != null")
     })
-    public OrderDTO createOrder(OrderDTO orderDTO) {
+    public OrderDTO createOrderFromCart(String cartId, String paymentMethod, ZonedDateTime deliveryTime) {
         long startTime = System.currentTimeMillis();
-        logger.info("Starting order creation for customer ID: {}, vendor ID: {}, train ID: {}",
-                orderDTO.getCustomerId(), orderDTO.getVendorId(), orderDTO.getTrainId());
+        logger.info("Starting order creation from cart ID: {}", cartId);
 
         try {
-            User customer = userRepository.findById(orderDTO.getCustomerId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Customer not found with id: " + orderDTO.getCustomerId()));
-            Vendor vendor = vendorRepository.findById(orderDTO.getVendorId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + orderDTO.getVendorId()));
-            Train train = trainRepository.findById(Math.toIntExact(orderDTO.getTrainId()))
-                    .orElseThrow(() -> new ResourceNotFoundException("Train not found with id: " + orderDTO.getTrainId()));
-            Station deliveryStation = stationRepository.findById(Math.toIntExact(orderDTO.getDeliveryStationId()))
-                    .orElseThrow(() -> new ResourceNotFoundException("Station not found with id: " + orderDTO.getDeliveryStationId()));
+            CartDTO cart = cartService.getCart(cartId);
+            logger.debug("Retrieved cart with ID: {} for customer ID: {}", cartId, cart.getCustomerId());
+
+            if (cart.getItems() == null || cart.getItems().isEmpty()) {
+                logger.warn("Cart ID: {} is empty", cartId);
+                throw new IllegalArgumentException("Cannot create order from empty cart");
+            }
+
+            User customer = userRepository.findById(cart.getCustomerId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Customer not found with id: " + cart.getCustomerId()));
+            Vendor vendor = vendorRepository.findById(cart.getVendorId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + cart.getVendorId()));
+            Train train = trainRepository.findById(Math.toIntExact(cart.getTrainId()))
+                    .orElseThrow(() -> new ResourceNotFoundException("Train not found with id: " + cart.getTrainId()));
+            Station deliveryStation = stationRepository.findById(Math.toIntExact(cart.getDeliveryStationId()))
+                    .orElseThrow(() -> new ResourceNotFoundException("Station not found with id: " + cart.getDeliveryStationId()));
 
             logger.debug("Valid entities retrieved for order creation: customer ID {}, vendor ID {}, train ID {}, station ID {}",
-                    orderDTO.getCustomerId(), orderDTO.getVendorId(), orderDTO.getTrainId(), orderDTO.getDeliveryStationId());
+                    cart.getCustomerId(), cart.getVendorId(), cart.getTrainId(), cart.getDeliveryStationId());
 
             Order order = new Order();
             order.setCustomer(customer);
             order.setVendor(vendor);
             order.setTrain(train);
-            order.setPnrNumber(orderDTO.getPnrNumber());
-            order.setCoachNumber(orderDTO.getCoachNumber());
-            order.setSeatNumber(orderDTO.getSeatNumber());
+            order.setPnrNumber(cart.getPnrNumber());
+            order.setCoachNumber(cart.getCoachNumber());
+            order.setSeatNumber(cart.getSeatNumber());
             order.setDeliveryStation(deliveryStation);
-            order.setDeliveryTime(orderDTO.getDeliveryTime());
+            order.setDeliveryTime(deliveryTime);
             order.setOrderStatus(OrderStatus.PLACED);
-            order.setPaymentMethod(orderDTO.getPaymentMethod());
+            order.setPaymentMethod(paymentMethod);
+            order.setDeliveryInstructions(cart.getDeliveryInstructions());
 
-            if ("COD".equals(orderDTO.getPaymentMethod())) {
-                double subtotal = orderDTO.getItems().stream()
-                        .mapToDouble(item -> item.getUnitPrice() * item.getQuantity())
-                        .sum();
-                double gstAmount = subtotal * paymentService.getGstRate();
-                double deliveryCharges = orderDTO.getDeliveryCharges() != null ? orderDTO.getDeliveryCharges() : 0.0;
-                double finalAmount = subtotal + gstAmount + deliveryCharges;
+            CartSummaryDTO summary = cartService.getCartSummary(cartId);
+            order.setTotalAmount(summary.getSubtotal());
+            order.setTaxAmount(summary.getTaxAmount());
+            order.setDeliveryCharges(summary.getDeliveryCharges());
+            order.setFinalAmount(summary.getFinalAmount());
+            order.setPaymentStatus("COD".equals(paymentMethod) ? PaymentStatus.PENDING : PaymentStatus.PROCESSING);
 
-                order.setTotalAmount(subtotal);
-                order.setTaxAmount(gstAmount);
-                order.setDeliveryCharges(deliveryCharges);
-                order.setFinalAmount(finalAmount);
-                order.setPaymentStatus(PaymentStatus.PENDING);
-                logger.debug("COD order amounts calculated: subtotal={}, gst={}, delivery={}, final={}",
-                        subtotal, gstAmount, deliveryCharges, finalAmount);
-            } else {
-                order.setTotalAmount(orderDTO.getTotalAmount());
-                order.setTaxAmount(orderDTO.getTaxAmount());
-                order.setDeliveryCharges(orderDTO.getDeliveryCharges());
-                order.setFinalAmount(orderDTO.getFinalAmount());
-                order.setPaymentStatus(orderDTO.getPaymentStatus());
-                logger.debug("Non-COD order amounts set: final amount={}", orderDTO.getFinalAmount());
-            }
-
-            order.setDeliveryInstructions(orderDTO.getDeliveryInstructions());
             order.setCreatedAt(ZonedDateTime.now());
             order.setUpdatedAt(ZonedDateTime.now());
 
             Order savedOrder = orderRepository.save(order);
             logger.debug("Order saved with ID: {}", savedOrder.getOrderId());
 
-            List<OrderItem> orderItems = orderDTO.getItems().stream().map(itemDTO -> {
+            List<OrderItem> orderItems = cart.getItems().stream().map(itemDTO -> {
                 MenuItem menuItem = menuItemRepository.findById(itemDTO.getItemId())
                         .orElseThrow(() -> new ResourceNotFoundException("Menu item not found with id: " + itemDTO.getItemId()));
                 OrderItem orderItem = new OrderItem();
@@ -137,19 +128,34 @@ public class OrderService {
 
             updateOrderTracking(savedOrder, OrderStatus.PLACED, "Order placed successfully", null);
 
-            orderDTO.setOrderId(savedOrder.getOrderId());
+            // Initiate Razorpay payment if not COD
+            String razorpayOrderId = null;
+            if (!"COD".equals(paymentMethod)) {
+                try {
+                    razorpayOrderId = paymentService.createRazorpayOrder(savedOrder.getOrderId());
+                    logger.info("Created Razorpay order ID: {} for order {}", razorpayOrderId, savedOrder.getOrderId());
+                } catch (RazorpayException e) {
+                    logger.error("Razorpay payment initiation failed for order ID: {}, error: {}", savedOrder.getOrderId(), e.getMessage());
+                    savedOrder.setPaymentStatus(PaymentStatus.FAILED);
+                    orderRepository.save(savedOrder);
+                    throw new RuntimeException("Payment initiation failed", e);
+                }
+            }
+
+            cartService.clearCart(cartId); // Clear cart after successful order creation
+            OrderDTO orderDTO = convertToOrderDTO(savedOrder);
+            orderDTO.setRazorpayOrderID(razorpayOrderId);
             logger.info("Order created successfully with ID: {}, took {}ms",
                     savedOrder.getOrderId(), System.currentTimeMillis() - startTime);
             return orderDTO;
         } catch (Exception e) {
-            logger.error("Failed to create order for customer ID: {}, error: {}", orderDTO.getCustomerId(), e.getMessage(), e);
+            logger.error("Failed to create order from cart ID: {}, error: {}", cartId, e.getMessage(), e);
             throw e;
         }
     }
 
     @Transactional
     @CacheEvict(value = "orders", key = "#orderId")
-
     public void markCodPaymentCompleted(Long orderId, Long updatedById, String remarks) {
         logger.info("Processing COD payment completion for order ID: {}, updated by user ID: {}", orderId, updatedById);
         try {
@@ -237,8 +243,6 @@ public class OrderService {
         }
     }
 
-
-
     @Cacheable(value = "orders", key = "#orderId")
     public OrderDTO getOrderById(Long orderId) {
         logger.info("Fetching order with ID: {}", orderId);
@@ -294,14 +298,14 @@ public class OrderService {
             OrderItemDTO itemDTO = new OrderItemDTO();
             if (item.getItem() != null) {
                 itemDTO.setItemId(item.getItem().getItemId());
+                itemDTO.setQuantity(item.getQuantity());
+                itemDTO.setUnitPrice(item.getUnitPrice());
+                itemDTO.setSpecialInstructions(item.getSpecialInstructions());
             } else {
                 logger.warn("OrderItem with ID {} has no associated MenuItem for order ID: {}",
                         item.getOrderItemId(), order.getOrderId());
                 throw new ResourceNotFoundException("Menu item not found for order item ID: " + item.getOrderItemId());
             }
-            itemDTO.setQuantity(item.getQuantity());
-            itemDTO.setUnitPrice(item.getUnitPrice());
-            itemDTO.setSpecialInstructions(item.getSpecialInstructions());
             return itemDTO;
         }).collect(Collectors.toList());
         orderDTO.setItems(itemDTOs);
@@ -309,4 +313,3 @@ public class OrderService {
         return orderDTO;
     }
 }
-
