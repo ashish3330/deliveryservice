@@ -125,7 +125,28 @@ public class MenuService {
             throw new ServiceException("MENU_CATEGORY_CREATION_FAILED", "Failed to create menu category");
         }
     }
+    @Cacheable(value = "menuCategories", key = "#categoryId")
+    public MenuCategoryDTO getMenuCategoriesById(Long categoryId) {
+        logger.info("Fetching menu category with ID: {}", categoryId);
+        if (categoryId == null) {
+            logger.warn("Invalid fetch request: categoryId is null");
+            throw new InvalidInputException("Category ID is required");
+        }
 
+        MenuCategory category = menuCategoryRepository.findById(categoryId)
+                .orElseThrow(() -> {
+                    logger.warn("Menu category not found with id: {}", categoryId);
+                    return new ResourceNotFoundException("Menu category not found with id: " + categoryId);
+                });
+
+        MenuCategoryDTO categoryDTO = new MenuCategoryDTO();
+        categoryDTO.setCategoryId(category.getCategoryId());
+        categoryDTO.setVendorId(category.getVendor().getVendorId());
+        categoryDTO.setCategoryName(category.getCategoryName());
+        categoryDTO.setDisplayOrder(category.getDisplayOrder());
+        logger.debug("Fetched menu category ID: {}", categoryId);
+        return categoryDTO;
+    }
     @Transactional
     @CacheEvict(value = {"vendorMenu", "availableMenuItems"}, key = "#categoryDTO.vendorId", allEntries = false)
     public MenuCategoryDTO updateMenuCategory(Long categoryId, MenuCategoryDTO categoryDTO) {

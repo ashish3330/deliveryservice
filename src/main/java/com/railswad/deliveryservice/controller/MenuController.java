@@ -56,6 +56,13 @@ public class MenuController {
         return ResponseEntity.ok(menuService.updateMenuCategory(categoryId, categoryDTO));
     }
 
+    @GetMapping("/categories/{categoryId}")
+//    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR')")
+    public ResponseEntity<MenuCategoryDTO> getMenuCategoryById(@PathVariable Long categoryId, @RequestBody MenuCategoryDTO categoryDTO) {
+        logger.info("Received request to update menu category ID: {}", categoryId);
+        return ResponseEntity.ok(menuService.getMenuCategoriesById(categoryId));
+    }
+
     @DeleteMapping("/categories/{categoryId}")
 //    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR')")
     public ResponseEntity<Void> deleteMenuCategory(@PathVariable Long categoryId) {
