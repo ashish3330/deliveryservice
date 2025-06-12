@@ -1,5 +1,6 @@
 package com.railswad.deliveryservice.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
@@ -26,6 +27,12 @@ public class RedisConfig {
     @Value("${spring.redis.port}")
     private int redisPort;
 
+    private final ObjectMapper objectMapper;
+
+    public RedisConfig(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
     @Bean
     public JedisConnectionFactory jedisConnectionFactory() {
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(redisHost, redisPort);
@@ -47,8 +54,9 @@ public class RedisConfig {
     @Bean
     public CacheManager cacheManager(JedisConnectionFactory jedisConnectionFactory) {
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofMinutes(10)) // Set TTL per entry
-                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer()));
+                .entryTtl(Duration.ofMinutes(10))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(
+                        new GenericJackson2JsonRedisSerializer(objectMapper)));
 
         return RedisCacheManager.builder(jedisConnectionFactory)
                 .cacheDefaults(config)
