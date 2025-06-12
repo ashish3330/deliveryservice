@@ -62,6 +62,8 @@ public class FileController {
                     .body(fileData);
         } catch (RuntimeException e) {
             return ResponseEntity.status(404).body(null);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 }
