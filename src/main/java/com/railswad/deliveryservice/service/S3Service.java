@@ -38,10 +38,10 @@ public class S3Service {
     private final FileRepository fileRepository;
     private final CloseableHttpClient httpClient;
 
-    @Value("${s3.bucket.name}")
+    @Value("${cloud.aws.s3.bucket}")
     private String bucketName;
 
-    @Value("${s3.endpoint}")
+    @Value("${cloud.aws.s3.endpoint}")
     private String endpoint;
 
     public S3Service(S3Client s3Client, S3Presigner s3Presigner, FileRepository fileRepository) {

@@ -32,7 +32,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                 .requestMatchers("/api/**").permitAll()
                                 .requestMatchers("/error").permitAll()
-                                .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()// <-- Add this line
+                                .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()  // <-- Add this line
 
 //                        .requestMatchers("/api/auth/register", "/api/auth/verify-otp", "/api/auth/login"
 //                                ,"/api/files/**","/api/auth/logout","/api/stations/**","/api/menu/**","/api/vendors/**","/api/auth/create-vendor").permitAll()
