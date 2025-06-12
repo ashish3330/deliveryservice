@@ -12,7 +12,7 @@ services:
     volumes:
       - prod_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "produser"]
+      test: ["CMD", "pg_isready", "-U", "prod_railswad_db"]
       interval: 10s
       timeout: 5s
       retries: 5
