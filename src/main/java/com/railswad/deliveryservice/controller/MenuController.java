@@ -58,7 +58,7 @@ public class MenuController {
 
     @GetMapping("/categories/{categoryId}")
 //    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR')")
-    public ResponseEntity<MenuCategoryDTO> getMenuCategoryById(@PathVariable Long categoryId, @RequestBody MenuCategoryDTO categoryDTO) {
+    public ResponseEntity<MenuCategoryDTO> getMenuCategoryById(@PathVariable Long categoryId) {
         logger.info("Received request to update menu category ID: {}", categoryId);
         return ResponseEntity.ok(menuService.getMenuCategoriesById(categoryId));
     }
