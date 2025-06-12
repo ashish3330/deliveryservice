@@ -125,7 +125,6 @@ public class MenuService {
             throw new ServiceException("MENU_CATEGORY_CREATION_FAILED", "Failed to create menu category");
         }
     }
-    @Cacheable(value = "menuCategories", key = "#categoryId")
     public MenuCategoryDTO getMenuCategoriesById(Long categoryId) {
         logger.info("Fetching menu category with ID: {}", categoryId);
         if (categoryId == null) {
