@@ -16,7 +16,6 @@ import com.railswad.deliveryservice.repository.MenuItemRepository;
 import com.railswad.deliveryservice.repository.UserRepository;
 import com.railswad.deliveryservice.repository.VendorRepository;
 import com.railswad.deliveryservice.util.ExcelHelper;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -578,7 +577,20 @@ public class MenuService {
                 throw new InvalidInputException("Item '" + dto.getItemName() + "' already exists in category '" + dto.getCategoryName() + "' at row " + (dtos.indexOf(dto) + 2));
             }
 
-            MenuItem item = getMenuItem(dto, category);
+            MenuItem item = new MenuItem();
+            item.setCategory(category);
+            item.setItemName(dto.getItemName());
+            item.setDescription(dto.getDescription());
+            item.setBasePrice(dto.getBasePrice());
+            item.setVendorPrice(dto.getVendorPrice());
+            item.setVegetarian(dto.isVegetarian());
+            item.setAvailable(dto.isAvailable());
+            item.setPreparationTimeMin(dto.getPreparationTimeMin());
+            item.setImageUrl(dto.getImageUrl());
+            item.setDisplayOrder(dto.getDisplayOrder() != null ? dto.getDisplayOrder() : 0);
+            item.setAvailableStartTime(dto.getAvailableStartTime());
+            item.setAvailableEndTime(dto.getAvailableEndTime());
+            item.setItemCategory(dto.getItemCategory());
 
             menuItems.add(item);
             logger.debug("Prepared menu item: {} in category: {}", dto.getItemName(), dto.getCategoryName());
@@ -592,25 +604,6 @@ public class MenuService {
             logger.error("Failed to save menu items for vendor ID: {} due to: {}", vendorId, e.getMessage(), e);
             throw new ServiceException("MENU_ITEM_UPLOAD_FAILED", "Failed to save menu items from Excel file");
         }
-    }
-
-    @NotNull
-    private static MenuItem getMenuItem(MenuItemDTO dto, MenuCategory category) {
-        MenuItem item = new MenuItem();
-        item.setCategory(category);
-        item.setItemName(dto.getItemName());
-        item.setDescription(dto.getDescription());
-        item.setBasePrice(dto.getBasePrice());
-        item.setVendorPrice(dto.getVendorPrice());
-        item.setVegetarian(dto.isVegetarian());
-        item.setAvailable(dto.isAvailable());
-        item.setPreparationTimeMin(dto.getPreparationTimeMin());
-        item.setImageUrl(dto.getImageUrl());
-        item.setDisplayOrder(dto.getDisplayOrder() != null ? dto.getDisplayOrder() : 0);
-        item.setAvailableStartTime(dto.getAvailableStartTime());
-        item.setAvailableEndTime(dto.getAvailableEndTime());
-        item.setItemCategory(dto.getItemCategory());
-        return item;
     }
 
     private void validateMenuCategoryDTO(MenuCategoryDTO categoryDTO) {

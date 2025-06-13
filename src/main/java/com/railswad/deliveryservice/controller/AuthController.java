@@ -1,9 +1,6 @@
 package com.railswad.deliveryservice.controller;
 
-import com.railswad.deliveryservice.dto.OtpRequestDTO;
-import com.railswad.deliveryservice.dto.UserDTO;
-import com.railswad.deliveryservice.dto.UserResponseDTO;
-import com.railswad.deliveryservice.dto.VendorCreationDTO;
+import com.railswad.deliveryservice.dto.*;
 import com.railswad.deliveryservice.security.AuthRequest;
 import com.railswad.deliveryservice.security.AuthResponse;
 import com.railswad.deliveryservice.service.AuthService;
@@ -72,18 +69,17 @@ public class AuthController {
     public ResponseEntity<?> login(@Valid @RequestBody AuthRequest authRequest, HttpServletResponse response) {
         try {
             logger.info("Login request for identifier: {}", authRequest.getIdentifier());
-            String token = authService.login(authRequest.getIdentifier(), authRequest.getPassword());
-            AuthResponse authResponse = new AuthResponse();
-            authResponse.setToken(token);
+            LoginResponseDTO loginResponseDTO = authService.login(authRequest.getIdentifier(), authRequest.getPassword());
 
-            Cookie cookie = new Cookie("jwtToken", token);
+
+            Cookie cookie = new Cookie("jwtToken", loginResponseDTO.getAccessToken());
             cookie.setHttpOnly(true);
             cookie.setSecure(true);
             cookie.setPath("/");
             cookie.setMaxAge(10 * 60 * 60);
             response.addCookie(cookie);
 
-            return ResponseEntity.ok(authResponse);
+            return ResponseEntity.ok(loginResponseDTO);
         } catch (RuntimeException e) {
             logger.error("Login failed: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponse(e.getMessage()));

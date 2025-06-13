@@ -1,9 +1,6 @@
 package com.railswad.deliveryservice.service;
 
-import com.railswad.deliveryservice.dto.OtpRequestDTO;
-import com.railswad.deliveryservice.dto.UserDTO;
-import com.railswad.deliveryservice.dto.VendorCreationDTO;
-import com.railswad.deliveryservice.dto.VendorDTO;
+import com.railswad.deliveryservice.dto.*;
 import com.railswad.deliveryservice.entity.Role;
 import com.railswad.deliveryservice.entity.User;
 import com.railswad.deliveryservice.entity.UserRole;
@@ -301,7 +298,7 @@ public class AuthService implements UserDetailsService {
     // Other methods remain unchanged...
 
     @Transactional
-    public String login(String identifier, String password) {
+    public LoginResponseDTO login(String identifier, String password) {
         logger.info("Attempting login for identifier: {}", identifier);
         if (!StringUtils.hasText(identifier) || !StringUtils.hasText(password)) {
             throw new InvalidInputException("Identifier and password are required");
@@ -333,10 +330,16 @@ public class AuthService implements UserDetailsService {
         String tokenRole = rawRole.startsWith("ROLE_") ? rawRole.substring(5) : rawRole;
 
         try {
-            String token = jwtService.generateToken(user, tokenRole); // updated line
+            String token = jwtService.generateToken(user, tokenRole);
             user.setLastLogin(ZonedDateTime.now());
             userRepository.save(user);
-            return token;
+
+            return new LoginResponseDTO(
+                    identifier,
+                    user.getUserId(),
+                    tokenRole,
+                    token
+            );
         } catch (Exception e) {
             throw new ServiceException("JWT_GENERATION_FAILED", "Failed to generate authentication token");
         }
