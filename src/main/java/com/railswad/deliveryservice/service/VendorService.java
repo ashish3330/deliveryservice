@@ -148,4 +148,27 @@ public class VendorService {
             return vendorDTO;
         });
     }
+
+    public VendorDTO findVendorByUserId(Long userId) {
+        Vendor vendor = vendorRepository.findByUserUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Vendor not found for user id: " + userId));
+        VendorDTO vendorDTO = new VendorDTO();
+        vendorDTO.setVendorId(vendor.getVendorId());
+        vendorDTO.setBusinessName(vendor.getBusinessName());
+        vendorDTO.setDescription(vendor.getDescription());
+        vendorDTO.setLogoUrl(vendor.getLogoUrl());
+        vendorDTO.setVeg(vendor.getIsVeg());
+        vendorDTO.setGstNumber(vendor.getGstNumber());
+        vendorDTO.setFssaiLicense(vendor.getFssaiLicense());
+        vendorDTO.setStationId(Long.valueOf(vendor.getStation().getStationId()));
+        vendorDTO.setAddress(vendor.getAddress());
+        vendorDTO.setPreparationTimeMin(vendor.getPreparationTimeMin());
+        vendorDTO.setMinOrderAmount(vendor.getMinOrderAmount());
+        vendorDTO.setVerified(vendor.getVerified());
+        vendorDTO.setRating(vendor.getRating());
+        vendorDTO.setActiveStatus(vendor.getActiveStatus());
+        return vendorDTO;
+    }
+
+
 }
