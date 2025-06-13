@@ -359,7 +359,6 @@ public class MenuService {
     }
 
 
-    @Cacheable(value = "menuItems", key = "#itemId")
     public MenuItemDTO getMenuItemById(Long itemId) {
         logger.info("Fetching menu item with ID: {}", itemId);
         if (itemId == null) {
