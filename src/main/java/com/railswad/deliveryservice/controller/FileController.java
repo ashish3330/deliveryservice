@@ -2,6 +2,7 @@ package com.railswad.deliveryservice.controller;
 
 import com.railswad.deliveryservice.dto.FileResponseDto;
 import com.railswad.deliveryservice.entity.FileEntity;
+import com.railswad.deliveryservice.exception.FileProcessingException;
 import com.railswad.deliveryservice.repository.FileRepository;
 import com.railswad.deliveryservice.service.S3Service;
 import org.springframework.http.HttpHeaders;
@@ -24,22 +25,22 @@ public class FileController {
     }
 
     @PostMapping("/upload")
-    public ResponseEntity<FileResponseDto> uploadFile(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) {
         try {
-            String cleanUrl = s3Service.uploadFile(file);
-            FileEntity fileEntity = fileRepository.findByFileUrl(cleanUrl)
-                    .orElseThrow(() -> new RuntimeException("File entity not found after upload"));
+            FileEntity fileEntity = s3Service.uploadFile(file);
 
             FileResponseDto responseDto = new FileResponseDto();
-            responseDto.setFileUrl(cleanUrl);
+            responseDto.setFileUrl(fileEntity.getFileUrl()); // Stores systemFileName
             responseDto.setOriginalFileName(fileEntity.getOriginalFileName());
             responseDto.setContentType(fileEntity.getContentType());
             responseDto.setFileSize(fileEntity.getFileSize());
             responseDto.setUploadDate(fileEntity.getUploadDate());
 
             return ResponseEntity.ok(responseDto);
-        } catch (IOException e) {
-            return ResponseEntity.status(500).body(null);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Bad request: " + e.getMessage());
+        } catch (IOException | RuntimeException e) {
+            return ResponseEntity.status(500).body("Failed to upload file: " + e.getMessage());
         }
     }
 
@@ -47,7 +48,7 @@ public class FileController {
     public ResponseEntity<byte[]> getFileByUrl(@RequestParam("systemFileName") String systemFileName) {
         try {
             FileEntity fileEntity = fileRepository.findByFileUrl(systemFileName)
-                    .orElseThrow(() -> new RuntimeException("File not found with URL: " + systemFileName));
+                    .orElseThrow(() -> new RuntimeException("File not found with systemFileName: " + systemFileName));
 
             byte[] fileData = s3Service.getFileBinaryDataBySystemFileName(systemFileName);
 
@@ -63,7 +64,7 @@ public class FileController {
         } catch (RuntimeException e) {
             return ResponseEntity.status(404).body(null);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            return ResponseEntity.status(500).body(null);
         }
     }
 }

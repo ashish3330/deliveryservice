@@ -2,6 +2,7 @@ package com.railswad.deliveryservice.service;
 
 import com.railswad.deliveryservice.entity.FileEntity;
 import com.railswad.deliveryservice.repository.FileRepository;
+import jakarta.annotation.PreDestroy;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -14,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
@@ -43,6 +43,9 @@ public class S3Service {
     @Value("${cloud.aws.s3.endpoint}")
     private String endpoint;
 
+    @Value("${file.upload.max-size:10485760}") // 10MB default
+    private long maxFileSize;
+
     public S3Service(S3Client s3Client, S3Presigner s3Presigner, FileRepository fileRepository) {
         this.s3Client = s3Client;
         this.s3Presigner = s3Presigner;
@@ -50,16 +53,26 @@ public class S3Service {
         this.httpClient = HttpClients.createDefault();
     }
 
-    public String uploadFile(MultipartFile file) throws IOException {
+    @PreDestroy
+    public void closeHttpClient() {
+        try {
+            httpClient.close();
+            logger.info("HTTP client closed");
+        } catch (IOException e) {
+            logger.error("Failed to close HTTP client: {}", e.getMessage(), e);
+        }
+    }
+
+    public FileEntity uploadFile(MultipartFile file) throws IOException {
         logger.info("Uploading file: {}", file.getOriginalFilename());
 
         if (file.isEmpty()) {
             logger.error("Uploaded file is empty");
             throw new IllegalArgumentException("Uploaded file is empty");
         }
-        if (file.getSize() > 10 * 1024 * 1024) { // 10MB limit
-            logger.error("File size exceeds 10MB: {}", file.getSize());
-            throw new IllegalArgumentException("File size exceeds 10MB");
+        if (file.getSize() > maxFileSize) {
+            logger.error("File size exceeds limit: {} bytes", file.getSize());
+            throw new IllegalArgumentException("File size exceeds limit of " + maxFileSize + " bytes");
         }
 
         String systemFileName = UUID.randomUUID() + "-" + file.getOriginalFilename();
@@ -80,20 +93,25 @@ public class S3Service {
         FileEntity fileEntity = new FileEntity();
         fileEntity.setOriginalFileName(file.getOriginalFilename());
         fileEntity.setSystemFileName(systemFileName);
-        fileEntity.setFileUrl(systemFileName); // Store systemFileName instead of pre-signed URL
+        fileEntity.setFileUrl(systemFileName); // Store systemFileName as clean URL
         fileEntity.setContentType(file.getContentType());
         fileEntity.setFileSize(file.getSize());
         fileEntity.setUploadDate(LocalDateTime.now());
         try {
             fileRepository.save(fileEntity);
             logger.info("File metadata saved: {}", systemFileName);
+            return fileEntity;
         } catch (Exception e) {
             logger.error("Failed to save file metadata: {}", e.getMessage(), e);
+            // Clean up S3 object to avoid orphaned files
+            try {
+                s3Client.deleteObject(builder -> builder.bucket(bucketName).key(systemFileName));
+                logger.info("Deleted orphaned S3 file: {}", systemFileName);
+            } catch (S3Exception deleteEx) {
+                logger.error("Failed to delete orphaned S3 file: {}", deleteEx.getMessage(), deleteEx);
+            }
             throw new RuntimeException("Failed to save file metadata: " + e.getMessage(), e);
         }
-
-        // Return a pre-signed URL for immediate use, if needed
-        return generatePresignedUrl(systemFileName);
     }
 
     public byte[] getFileBinaryDataBySystemFileName(String systemFileName) throws IOException {
@@ -113,7 +131,7 @@ public class S3Service {
                         logger.info("File exists in S3, creating temporary FileEntity: {}", systemFileName);
                         FileEntity tempEntity = new FileEntity();
                         tempEntity.setSystemFileName(systemFileName);
-                        tempEntity.setFileUrl(systemFileName); // Store systemFileName
+                        tempEntity.setFileUrl(systemFileName);
                         return tempEntity;
                     } catch (NoSuchKeyException e) {
                         logger.error("File not found in S3: {}", systemFileName);
