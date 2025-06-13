@@ -98,6 +98,6 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
 
     long countByDeliveryStationStationId(Integer stationId);
 
-    Optional<Order> findByOrderIdAndUserUserId(Long orderId, Long userId);
-
+    @Query("SELECT o FROM Order o WHERE o.orderId = :orderId AND ( o.customer.userId = :userId)")
+    Optional<Order> findByOrderIdAndUserUserId(@Param("orderId") Long orderId, @Param("userId") Long userId);
 }
