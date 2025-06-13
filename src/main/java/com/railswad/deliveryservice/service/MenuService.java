@@ -402,7 +402,7 @@ public class MenuService {
         LocalTime currentTime = LocalTime.now();
         List<MenuItem> items;
         try {
-            items = menuItemRepository.findAvailableItemsByVendor(vendorId, currentTime);
+            items = menuItemRepository.findAvailableItemsByVendor(vendorId);
             logger.debug("Found {} available menu items for vendor ID: {}", items.size(), vendorId);
         } catch (Exception e) {
             logger.error("Failed to fetch available menu items for vendor ID: {} due to: {}", vendorId, e.getMessage(), e);

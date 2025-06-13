@@ -16,7 +16,7 @@ public interface MenuItemRepository extends JpaRepository<MenuItem, Long> {
 //            "AND (m.availableStartTime IS NULL OR m.availableEndTime IS NULL OR " +
 //            "(m.availableStartTime <= :currentTime AND m.availableEndTime >= :currentTime))")
     @Query("SELECT m FROM MenuItem m WHERE m.category.vendor.vendorId = :vendorId AND m.available = true")
-    List<MenuItem> findAvailableItemsByVendor(Long vendorId, LocalTime currentTime);
+    List<MenuItem> findAvailableItemsByVendor(Long vendorId);
     Optional<MenuItem> findByCategoryAndItemName(MenuCategory category, String itemName);
     List<MenuItem> findByCategory(MenuCategory category);
 
