@@ -23,7 +23,6 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -78,12 +77,10 @@ public class S3Service {
             throw new RuntimeException("Failed to upload file to S3: " + e.getMessage(), e);
         }
 
-        String fileUrl = generatePresignedUrl(systemFileName);
-
         FileEntity fileEntity = new FileEntity();
         fileEntity.setOriginalFileName(file.getOriginalFilename());
         fileEntity.setSystemFileName(systemFileName);
-        fileEntity.setFileUrl(fileUrl);
+        fileEntity.setFileUrl(systemFileName); // Store systemFileName instead of pre-signed URL
         fileEntity.setContentType(file.getContentType());
         fileEntity.setFileSize(file.getSize());
         fileEntity.setUploadDate(LocalDateTime.now());
@@ -95,31 +92,28 @@ public class S3Service {
             throw new RuntimeException("Failed to save file metadata: " + e.getMessage(), e);
         }
 
-        return fileUrl;
+        // Return a pre-signed URL for immediate use, if needed
+        return generatePresignedUrl(systemFileName);
     }
 
-    public byte[] getFileBinaryDataByUrl(String fileUrl) throws IOException {
-        logger.info("Retrieving file from URL: {}", fileUrl);
+    public byte[] getFileBinaryDataBySystemFileName(String systemFileName) throws IOException {
+        logger.info("Retrieving file with system file name: {}", systemFileName);
 
-        if (fileUrl == null || !fileUrl.startsWith(endpoint + "/" + bucketName)) {
-            logger.error("Invalid file URL: {}", fileUrl);
-            throw new IllegalArgumentException("Invalid file URL: " + fileUrl);
+        if (systemFileName == null || systemFileName.trim().isEmpty()) {
+            logger.error("Invalid system file name: {}", systemFileName);
+            throw new IllegalArgumentException("Invalid system file name: " + systemFileName);
         }
-
-        String systemFileName = extractSystemFileName(fileUrl);
-        logger.debug("Extracted system file name: {}", systemFileName);
 
         // Check if file exists in database
         FileEntity fileEntity = fileRepository.findBySystemFileName(systemFileName)
                 .orElseGet(() -> {
                     logger.warn("File not found in database: {}. Attempting to check S3.", systemFileName);
-                    // Optional: Check if file exists in S3
                     try {
                         s3Client.headObject(builder -> builder.bucket(bucketName).key(systemFileName));
                         logger.info("File exists in S3, creating temporary FileEntity: {}", systemFileName);
                         FileEntity tempEntity = new FileEntity();
                         tempEntity.setSystemFileName(systemFileName);
-                        tempEntity.setFileUrl(fileUrl);
+                        tempEntity.setFileUrl(systemFileName); // Store systemFileName
                         return tempEntity;
                     } catch (NoSuchKeyException e) {
                         logger.error("File not found in S3: {}", systemFileName);
@@ -149,6 +143,17 @@ public class S3Service {
         }
     }
 
+    public String getPresignedUrlBySystemFileName(String systemFileName) {
+        logger.info("Generating pre-signed URL for system file name: {}", systemFileName);
+
+        if (systemFileName == null || systemFileName.trim().isEmpty()) {
+            logger.error("Invalid system file name: {}", systemFileName);
+            throw new IllegalArgumentException("Invalid system file name: " + systemFileName);
+        }
+
+        return generatePresignedUrl(systemFileName);
+    }
+
     private String generatePresignedUrl(String fileName) {
         try {
             GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
@@ -162,21 +167,6 @@ public class S3Service {
         } catch (SdkClientException e) {
             logger.error("Failed to generate pre-signed URL: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to generate pre-signed URL: " + e.getMessage(), e);
-        }
-    }
-
-    private String extractSystemFileName(String fileUrl) {
-        try {
-            String systemFileName = fileUrl.substring(fileUrl.lastIndexOf('/') + 1);
-            // Remove query parameters from pre-signed URLs
-            if (systemFileName.contains("?")) {
-                systemFileName = systemFileName.substring(0, systemFileName.indexOf('?'));
-            }
-            logger.debug("Extracted system file name: {} from URL: {}", systemFileName, fileUrl);
-            return systemFileName;
-        } catch (StringIndexOutOfBoundsException e) {
-            logger.error("Failed to extract system file name from URL: {}", fileUrl);
-            throw new IllegalArgumentException("Invalid file URL format: " + fileUrl, e);
         }
     }
 }

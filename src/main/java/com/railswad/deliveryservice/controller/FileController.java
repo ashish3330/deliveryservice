@@ -44,12 +44,12 @@ public class FileController {
     }
 
     @GetMapping("/download")
-    public ResponseEntity<byte[]> getFileByUrl(@RequestParam("url") String fileUrl) {
+    public ResponseEntity<byte[]> getFileByUrl(@RequestParam("systemFileName") String systemFileName) {
         try {
-            FileEntity fileEntity = fileRepository.findByFileUrl(fileUrl)
-                    .orElseThrow(() -> new RuntimeException("File not found with URL: " + fileUrl));
+            FileEntity fileEntity = fileRepository.findByFileUrl(systemFileName)
+                    .orElseThrow(() -> new RuntimeException("File not found with URL: " + systemFileName));
 
-            byte[] fileData = s3Service.getFileBinaryDataByUrl(fileUrl);
+            byte[] fileData = s3Service.getFileBinaryDataBySystemFileName(systemFileName);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.parseMediaType(
