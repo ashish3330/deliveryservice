@@ -2,7 +2,6 @@ package com.railswad.deliveryservice.controller;
 
 import com.railswad.deliveryservice.dto.*;
 import com.railswad.deliveryservice.security.AuthRequest;
-import com.railswad.deliveryservice.security.AuthResponse;
 import com.railswad.deliveryservice.service.AuthService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;

@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecificationExecutor<Order> {
     @Query("SELECT new com.railswad.deliveryservice.dto.VendorSalesSummaryDTO(" +
@@ -96,5 +97,7 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
 
 
     long countByDeliveryStationStationId(Integer stationId);
+
+    Optional<Order> findByOrderIdAndUserUserId(Long orderId, Long userId);
 
 }
