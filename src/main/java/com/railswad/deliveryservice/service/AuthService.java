@@ -89,11 +89,11 @@ public class AuthService implements UserDetailsService {
             logger.warn("Registration failed: Either email or phoneNumber is required");
             throw new InvalidInputException("Either email or phoneNumber is required");
         }
-        if (userDTO.getEmail() != null && !userDTO.getEmail().isEmpty() &&
-                userDTO.getPhoneNumber() != null && !userDTO.getPhoneNumber().isEmpty()) {
-            logger.warn("Registration failed: Only one of email or phoneNumber should be provided");
-            throw new InvalidInputException("Only one of email or phoneNumber should be provided");
-        }
+//        if (userDTO.getEmail() != null && !userDTO.getEmail().isEmpty() &&
+//                userDTO.getPhoneNumber() != null && !userDTO.getPhoneNumber().isEmpty()) {
+//            logger.warn("Registration failed: Only one of email or phoneNumber should be provided");
+//            throw new InvalidInputException("Only one of email or phoneNumber should be provided");
+//        }
         validateUserDTO(userDTO);
 
         // Check for existing verified user in database
