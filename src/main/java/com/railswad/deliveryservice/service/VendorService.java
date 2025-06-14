@@ -3,20 +3,22 @@ package com.railswad.deliveryservice.service;
 import com.railswad.deliveryservice.dto.VendorDTO;
 import com.railswad.deliveryservice.entity.Station;
 import com.railswad.deliveryservice.entity.User;
+import com.railswad.deliveryservice.entity.UserRole;
 import com.railswad.deliveryservice.entity.Vendor;
 import com.railswad.deliveryservice.exception.ResourceNotFoundException;
 import com.railswad.deliveryservice.repository.StationRepository;
 import com.railswad.deliveryservice.repository.UserRepository;
+import com.railswad.deliveryservice.repository.UserRoleRepository;
 import com.railswad.deliveryservice.repository.VendorRepository;
+import jakarta.transaction.Transactional;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 
-import java.io.File;
+import java.util.List;
 
 @Service
 public class VendorService {
@@ -34,12 +36,23 @@ public class VendorService {
     @Autowired
     private StationRepository stationRepository;
 
-    public VendorDTO createVendor(VendorDTO vendorDTO) {
+    @Autowired
+    private UserRoleRepository userRoleRepository;
+
+    public void createVendor(VendorDTO vendorDTO) {
         User user = userRepository.findById(vendorDTO.getVendorId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + vendorDTO.getVendorId()));
         Station station = stationRepository.findById(Math.toIntExact(vendorDTO.getStationId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Station not found with id: " + vendorDTO.getStationId()));
 
+        Vendor vendor = getVendor(vendorDTO, user, station);
+
+        Vendor savedVendor = vendorRepository.save(vendor);
+        vendorDTO.setVendorId(savedVendor.getVendorId());
+    }
+
+    @NotNull
+    private static Vendor getVendor(VendorDTO vendorDTO, User user, Station station) {
         Vendor vendor = new Vendor();
         vendor.setUser(user);
         vendor.setBusinessName(vendorDTO.getBusinessName());
@@ -55,10 +68,7 @@ public class VendorService {
         vendor.setVerified(vendorDTO.isVerified());
         vendor.setRating(vendorDTO.getRating());
         vendor.setActiveStatus(vendorDTO.isActiveStatus());
-
-        Vendor savedVendor = vendorRepository.save(vendor);
-        vendorDTO.setVendorId(savedVendor.getVendorId());
-        return vendorDTO;
+        return vendor;
     }
 
     public VendorDTO updateVendor(Long vendorId, VendorDTO vendorDTO) {
@@ -90,57 +100,15 @@ public class VendorService {
         // Find the vendor or throw an exception if not found
         Vendor vendor = vendorRepository.findById(vendorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + vendorId));
-
-//        // Delete the associated logo from S3 if it exists
-//        if (vendor.getLogoUrl() != null && !vendor.getLogoUrl().isEmpty()) {
-//            try {
-//                String s3Key = extractS3KeyFromUrl(vendor.getLogoUrl());
-//                DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
-//                        .bucket(bucketName)
-//                        .key(s3Key)
-//                        .build();
-//                s3Client.deleteObject(deleteObjectRequest);
-//            } catch (Exception e) {
-//                // Log the error but proceed with deletion to avoid partial deletes
-//                System.err.println("Failed to delete S3 object for vendor " + vendorId + ": " + e.getMessage());
-//            }
-//
-//            // Delete the local logo file if it exists
-//            try {
-//                File localFile = new File(vendor.getLogoUrl());
-//                if (localFile.exists()) {
-//                    boolean deleted = localFile.delete();
-//                    if (!deleted) {
-//                        System.err.println("Failed to delete local file: " + vendor.getLogoUrl());
-//                    }
-//                }
-//            } catch (Exception e) {
-//                System.err.println("Error while deleting local file for vendor " + vendorId + ": " + e.getMessage());
-//            }
-//        }
-
-        // Delete the associated user if it exists
-        User user = vendor.getUser();
-        if (user != null) {
-            try {
-                userRepository.delete(user);
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to delete associated user with id: " + user.getUserId(), e);
-            }
-        }
-
-        // Delete the vendor
-        try {
-            vendorRepository.delete(vendor);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to delete vendor with id: " + vendorId, e);
-        }
+        // Call the helper method to perform deletion
+        deleteVendorAndAssociatedData(vendor);
     }
-
     public VendorDTO getVendorById(Long vendorId) {
         Vendor vendor = vendorRepository.findById(vendorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + vendorId));
         VendorDTO vendorDTO = new VendorDTO();
+        vendorDTO.setUsername(vendor.getUser().getUsername());
+        vendorDTO.setEmail(vendor.getUser().getEmail());
         vendorDTO.setVendorId(vendor.getVendorId());
         vendorDTO.setBusinessName(vendor.getBusinessName());
         vendorDTO.setDescription(vendor.getDescription());
@@ -223,12 +191,35 @@ public class VendorService {
         vendorDTO.setActiveStatus(vendor.getActiveStatus());
         return vendorDTO;
     }
+    @Transactional
+    private void deleteVendorAndAssociatedData(Vendor vendor) {
+        // Get the associated user
+        User user = vendor.getUser();
+        if (user != null) {
+            // Delete associated user roles
+            List<UserRole> userRoles = userRoleRepository.findByUser(user);
+            if (!userRoles.isEmpty()) {
+                try {
+                    userRoleRepository.deleteAll(userRoles);
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to delete user roles for user with id: " + user.getUserId(), e);
+                }
+            }
 
+            // Delete the user
+            try {
+                userRepository.delete(user);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to delete associated user with id: " + user.getUserId(), e);
+            }
+        }
 
-    private String extractS3KeyFromUrl(String logoUrl) {
-        // Assuming logoUrl is in the format: https://bucket-name.s3.region.amazonaws.com/key
-        String[] parts = logoUrl.split("/");
-        return parts[parts.length - 1]; // Adjust based on actual URL format
+        // Delete the vendor
+        try {
+            vendorRepository.delete(vendor);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to delete vendor with id: " + vendor.getVendorId(), e);
+        }
     }
 
 }

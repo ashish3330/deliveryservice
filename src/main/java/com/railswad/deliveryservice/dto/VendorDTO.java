@@ -6,7 +6,7 @@ import lombok.Data;
 public class VendorDTO {
     private Long vendorId; // Output field, set after creation
     private String username; // Input field for User creation
-    private String password; // Input field for User creation
+    private String email; // Input field for User creation
     private String businessName;
     private String description;
     private String logoUrl;
