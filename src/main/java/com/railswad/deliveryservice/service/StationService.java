@@ -194,7 +194,7 @@
                         predicates.add(cb.like(cb.lower(root.get("stationCode")), "%" + stationCode.toLowerCase() + "%"));
                     }
                     if (StringUtils.hasText(city)) {
-                        predicates.add(cb.like(cb.lower(root.get("state")), "%" + city.toLowerCase() + "%"));
+                        predicates.add(cb.like(cb.lower(root.get("city")), "%" + city.toLowerCase() + "%"));
                     }
                     return cb.and(predicates.toArray(new Predicate[0]));
                 };
