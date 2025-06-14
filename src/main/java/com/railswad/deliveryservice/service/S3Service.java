@@ -3,22 +3,23 @@ package com.railswad.deliveryservice.service;
 import com.railswad.deliveryservice.entity.FileEntity;
 import com.railswad.deliveryservice.repository.FileRepository;
 import jakarta.annotation.PreDestroy;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
-import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
@@ -35,7 +36,6 @@ public class S3Service {
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
     private final FileRepository fileRepository;
-    private final CloseableHttpClient httpClient;
 
     @Value("${cloud.aws.s3.bucket}")
     private String bucketName;
@@ -50,19 +50,15 @@ public class S3Service {
         this.s3Client = s3Client;
         this.s3Presigner = s3Presigner;
         this.fileRepository = fileRepository;
-        this.httpClient = HttpClients.createDefault();
     }
 
     @PreDestroy
-    public void closeHttpClient() {
-        try {
-            httpClient.close();
-            logger.info("HTTP client closed");
-        } catch (IOException e) {
-            logger.error("Failed to close HTTP client: {}", e.getMessage(), e);
-        }
+    public void close() {
+        s3Presigner.close();
+        logger.info("S3Presigner closed");
     }
 
+    @CacheEvict(value = {"fileData", "presignedUrl", "fileEntity"}, key = "#result.systemFileName")
     public FileEntity uploadFile(MultipartFile file) throws IOException {
         logger.info("Uploading file: {}", file.getOriginalFilename());
 
@@ -93,7 +89,7 @@ public class S3Service {
         FileEntity fileEntity = new FileEntity();
         fileEntity.setOriginalFileName(file.getOriginalFilename());
         fileEntity.setSystemFileName(systemFileName);
-        fileEntity.setFileUrl(systemFileName); // Store systemFileName as clean URL
+        fileEntity.setFileUrl(systemFileName);
         fileEntity.setContentType(file.getContentType());
         fileEntity.setFileSize(file.getSize());
         fileEntity.setUploadDate(LocalDateTime.now());
@@ -103,7 +99,6 @@ public class S3Service {
             return fileEntity;
         } catch (Exception e) {
             logger.error("Failed to save file metadata: {}", e.getMessage(), e);
-            // Clean up S3 object to avoid orphaned files
             try {
                 s3Client.deleteObject(builder -> builder.bucket(bucketName).key(systemFileName));
                 logger.info("Deleted orphaned S3 file: {}", systemFileName);
@@ -114,6 +109,7 @@ public class S3Service {
         }
     }
 
+    @Cacheable(value = "fileData", key = "#fileEntity.systemFileName", unless = "#result == null")
     public byte[] getFileBinaryData(FileEntity fileEntity) throws IOException {
         String systemFileName = fileEntity.getSystemFileName();
         logger.info("Retrieving file with system file name: {}", systemFileName);
@@ -123,37 +119,24 @@ public class S3Service {
             throw new IllegalArgumentException("Invalid system file name: " + systemFileName);
         }
 
-        // Verify file exists in S3
         try {
-            s3Client.headObject(builder -> builder.bucket(bucketName).key(systemFileName));
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(systemFileName)
+                    .build();
+            ResponseBytes<GetObjectResponse> response = s3Client.getObjectAsBytes(getObjectRequest);
+            logger.info("File retrieved successfully from S3: {}", systemFileName);
+            return response.asByteArray();
         } catch (NoSuchKeyException e) {
             logger.error("File not found in S3: {}", systemFileName);
             throw new RuntimeException("File not found in S3: " + systemFileName, e);
         } catch (S3Exception e) {
-            logger.error("Error checking S3 for file: {}", e.getMessage(), e);
-            throw new RuntimeException("Error checking S3: " + e.getMessage(), e);
-        }
-
-        String presignedUrl = generatePresignedUrl(systemFileName);
-        try (CloseableHttpResponse response = httpClient.execute(new HttpGet(presignedUrl))) {
-            int statusCode = response.getStatusLine().getStatusCode();
-            if (statusCode == 200) {
-                logger.info("File retrieved successfully: {}", systemFileName);
-                return EntityUtils.toByteArray(response.getEntity());
-            } else {
-                logger.error("Failed to fetch file, status: {}", statusCode);
-                if (statusCode == 401) {
-                    throw new RuntimeException("Unauthorized access to file: check S3 credentials or bucket permissions");
-                }
-                throw new RuntimeException("Failed to fetch file, status: " + statusCode);
-            }
-        } catch (IOException e) {
-            logger.error("Failed to download file: {}", e.getMessage(), e);
-            throw new IOException("Failed to download file: " + e.getMessage(), e);
+            logger.error("Error fetching file from S3: {}", e.getMessage(), e);
+            throw new RuntimeException("Error fetching file from S3: " + e.getMessage(), e);
         }
     }
 
-    // Deprecated method, kept for backward compatibility
+    @Cacheable(value = "fileEntity", key = "#systemFileName", unless = "#result == null")
     public byte[] getFileBinaryDataBySystemFileName(String systemFileName) throws IOException {
         logger.warn("Using deprecated method getFileBinaryDataBySystemFileName. Use getFileBinaryData(FileEntity) instead.");
         FileEntity fileEntity = fileRepository.findBySystemFileName(systemFileName)
@@ -161,6 +144,7 @@ public class S3Service {
         return getFileBinaryData(fileEntity);
     }
 
+    @Cacheable(value = "presignedUrl", key = "#systemFileName", unless = "#result == null")
     public String getPresignedUrlBySystemFileName(String systemFileName) {
         logger.info("Generating pre-signed URL for system file name: {}", systemFileName);
 
@@ -172,6 +156,7 @@ public class S3Service {
         return generatePresignedUrl(systemFileName);
     }
 
+    @CachePut(value = "presignedUrl", key = "#fileName")
     private String generatePresignedUrl(String fileName) {
         try {
             GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
