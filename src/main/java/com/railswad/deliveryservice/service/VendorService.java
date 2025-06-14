@@ -30,8 +30,6 @@ public class VendorService {
     @Autowired
     private S3Client s3Client;
 
-    @Value("${aws.s3.bucket-name}")
-    private String bucketName;
 
     @Autowired
     private StationRepository stationRepository;
@@ -93,33 +91,33 @@ public class VendorService {
         Vendor vendor = vendorRepository.findById(vendorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + vendorId));
 
-        // Delete the associated logo from S3 if it exists
-        if (vendor.getLogoUrl() != null && !vendor.getLogoUrl().isEmpty()) {
-            try {
-                String s3Key = extractS3KeyFromUrl(vendor.getLogoUrl());
-                DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
-                        .bucket(bucketName)
-                        .key(s3Key)
-                        .build();
-                s3Client.deleteObject(deleteObjectRequest);
-            } catch (Exception e) {
-                // Log the error but proceed with deletion to avoid partial deletes
-                System.err.println("Failed to delete S3 object for vendor " + vendorId + ": " + e.getMessage());
-            }
-
-            // Delete the local logo file if it exists
-            try {
-                File localFile = new File(vendor.getLogoUrl());
-                if (localFile.exists()) {
-                    boolean deleted = localFile.delete();
-                    if (!deleted) {
-                        System.err.println("Failed to delete local file: " + vendor.getLogoUrl());
-                    }
-                }
-            } catch (Exception e) {
-                System.err.println("Error while deleting local file for vendor " + vendorId + ": " + e.getMessage());
-            }
-        }
+//        // Delete the associated logo from S3 if it exists
+//        if (vendor.getLogoUrl() != null && !vendor.getLogoUrl().isEmpty()) {
+//            try {
+//                String s3Key = extractS3KeyFromUrl(vendor.getLogoUrl());
+//                DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
+//                        .bucket(bucketName)
+//                        .key(s3Key)
+//                        .build();
+//                s3Client.deleteObject(deleteObjectRequest);
+//            } catch (Exception e) {
+//                // Log the error but proceed with deletion to avoid partial deletes
+//                System.err.println("Failed to delete S3 object for vendor " + vendorId + ": " + e.getMessage());
+//            }
+//
+//            // Delete the local logo file if it exists
+//            try {
+//                File localFile = new File(vendor.getLogoUrl());
+//                if (localFile.exists()) {
+//                    boolean deleted = localFile.delete();
+//                    if (!deleted) {
+//                        System.err.println("Failed to delete local file: " + vendor.getLogoUrl());
+//                    }
+//                }
+//            } catch (Exception e) {
+//                System.err.println("Error while deleting local file for vendor " + vendorId + ": " + e.getMessage());
+//            }
+//        }
 
         // Delete the associated user if it exists
         User user = vendor.getUser();
