@@ -11,6 +11,8 @@ import com.railswad.deliveryservice.repository.UserRepository;
 import com.railswad.deliveryservice.repository.UserRoleRepository;
 import com.railswad.deliveryservice.repository.VendorRepository;
 import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,7 +23,7 @@ import java.util.List;
 
 @Service
 public class VendorService {
-
+    private  final static Logger logger = LoggerFactory.getLogger(VendorService.class);
     @Autowired
     private VendorRepository vendorRepository;
 
@@ -186,33 +188,50 @@ public class VendorService {
     }
     @Transactional
     private void deleteVendorAndAssociatedData(Vendor vendor) {
-        // Get the associated user
+        logger.info("Starting deletion process for vendor with id: {}", vendor.getVendorId());
+
+        // Step 1: Delete the Vendor first to remove the foreign key reference to User
+        try {
+            vendorRepository.delete(vendor);
+            logger.info("Successfully deleted vendor with id: {}", vendor.getVendorId());
+        } catch (Exception e) {
+            logger.error("Failed to delete vendor with id: {}", vendor.getVendorId(), e);
+            throw new RuntimeException("Failed to delete vendor with id: " + vendor.getVendorId(), e);
+        }
+
+        // Step 2: Get the associated user and delete associated data
         User user = vendor.getUser();
         if (user != null) {
-            // Delete associated user roles
+            logger.info("Found associated user with id: {}", user.getUserId());
+
+            // Step 2a: Delete associated user roles
             List<UserRole> userRoles = userRoleRepository.findByUser(user);
             if (!userRoles.isEmpty()) {
                 try {
                     userRoleRepository.deleteAll(userRoles);
+                    logger.info("Successfully deleted {} user roles for user with id: {}", userRoles.size(), user.getUserId());
                 } catch (Exception e) {
+                    logger.error("Failed to delete user roles for user with id: {}", user.getUserId(), e);
                     throw new RuntimeException("Failed to delete user roles for user with id: " + user.getUserId(), e);
                 }
+            } else {
+                logger.info("No user roles found for user with id: {}", user.getUserId());
             }
 
-            // Delete the user
+            // Step 2b: Delete the user
             try {
                 userRepository.delete(user);
+                logger.info("Successfully deleted user with id: {}", user.getUserId());
             } catch (Exception e) {
+                logger.error("Failed to delete user with id: {}", user.getUserId(), e);
                 throw new RuntimeException("Failed to delete associated user with id: " + user.getUserId(), e);
             }
+        } else {
+            logger.warn("No associated user found for vendor with id: {}", vendor.getVendorId());
         }
 
-        // Delete the vendor
-        try {
-            vendorRepository.delete(vendor);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to delete vendor with id: " + vendor.getVendorId(), e);
-        }
+        logger.info("Completed deletion process for vendor with id: {}", vendor.getVendorId());
     }
-
 }
+
+
