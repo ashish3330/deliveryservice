@@ -126,7 +126,6 @@ public class S3Service {
         // Verify file exists in S3
         try {
             s3Client.headObject(builder -> builder.bucket(bucketName).key(systemFileName));
-            logger.info("File exists in S3: {}", systemFileName);
         } catch (NoSuchKeyException e) {
             logger.error("File not found in S3: {}", systemFileName);
             throw new RuntimeException("File not found in S3: " + systemFileName, e);
@@ -136,24 +135,17 @@ public class S3Service {
         }
 
         String presignedUrl = generatePresignedUrl(systemFileName);
-        logger.debug("Generated presigned URL: {}", presignedUrl);
-
-        HttpGet httpGet = new HttpGet(presignedUrl);
-        logger.debug("Executing HTTP GET request to: {}", presignedUrl);
-        try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
+        try (CloseableHttpResponse response = httpClient.execute(new HttpGet(presignedUrl))) {
             int statusCode = response.getStatusLine().getStatusCode();
-            logger.debug("HTTP response status: {}", statusCode);
             if (statusCode == 200) {
                 logger.info("File retrieved successfully: {}", systemFileName);
                 return EntityUtils.toByteArray(response.getEntity());
             } else {
-                logger.error("Failed to fetch file, status: {}, reason: {}", statusCode, response.getStatusLine().getReasonPhrase());
+                logger.error("Failed to fetch file, status: {}", statusCode);
                 if (statusCode == 401) {
                     throw new RuntimeException("Unauthorized access to file: check S3 credentials or bucket permissions");
-                } else if (statusCode == 403) {
-                    throw new RuntimeException("Forbidden access to file: check bucket policies and IAM permissions");
                 }
-                throw new RuntimeException("Failed to fetch file, status: " + statusCode + ", reason: " + response.getStatusLine().getReasonPhrase());
+                throw new RuntimeException("Failed to fetch file, status: " + statusCode);
             }
         } catch (IOException e) {
             logger.error("Failed to download file: {}", e.getMessage(), e);
