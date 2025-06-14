@@ -128,7 +128,7 @@
             return mapToDTO(station);
         }
 
-        @Cacheable(value = "stations", key = "#stationName + '-' + #stationCode + '-' + #state")
+        @Cacheable(value = "stations", key = "#stationName + '-' + #stationCode + '-' + #city")
         public List<StationDTO> getStations(String stationName, String stationCode, String city) {
             List<Station> stations;
 

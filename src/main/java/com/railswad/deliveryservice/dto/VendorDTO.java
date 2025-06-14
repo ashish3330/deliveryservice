@@ -1,8 +1,10 @@
 package com.railswad.deliveryservice.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class VendorDTO {
     private Long vendorId; // Output field, set after creation
     private String username; // Input field for User creation
