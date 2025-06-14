@@ -9,9 +9,14 @@ import com.railswad.deliveryservice.repository.StationRepository;
 import com.railswad.deliveryservice.repository.UserRepository;
 import com.railswad.deliveryservice.repository.VendorRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+
+import java.io.File;
 
 @Service
 public class VendorService {
@@ -21,6 +26,12 @@ public class VendorService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private S3Client s3Client;
+
+    @Value("${aws.s3.bucket-name}")
+    private String bucketName;
 
     @Autowired
     private StationRepository stationRepository;
@@ -78,9 +89,54 @@ public class VendorService {
     }
 
     public void deleteVendor(Long vendorId) {
+        // Find the vendor or throw an exception if not found
         Vendor vendor = vendorRepository.findById(vendorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + vendorId));
-        vendorRepository.delete(vendor);
+
+        // Delete the associated logo from S3 if it exists
+        if (vendor.getLogoUrl() != null && !vendor.getLogoUrl().isEmpty()) {
+            try {
+                String s3Key = extractS3KeyFromUrl(vendor.getLogoUrl());
+                DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(s3Key)
+                        .build();
+                s3Client.deleteObject(deleteObjectRequest);
+            } catch (Exception e) {
+                // Log the error but proceed with deletion to avoid partial deletes
+                System.err.println("Failed to delete S3 object for vendor " + vendorId + ": " + e.getMessage());
+            }
+
+            // Delete the local logo file if it exists
+            try {
+                File localFile = new File(vendor.getLogoUrl());
+                if (localFile.exists()) {
+                    boolean deleted = localFile.delete();
+                    if (!deleted) {
+                        System.err.println("Failed to delete local file: " + vendor.getLogoUrl());
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Error while deleting local file for vendor " + vendorId + ": " + e.getMessage());
+            }
+        }
+
+        // Delete the associated user if it exists
+        User user = vendor.getUser();
+        if (user != null) {
+            try {
+                userRepository.delete(user);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to delete associated user with id: " + user.getUserId(), e);
+            }
+        }
+
+        // Delete the vendor
+        try {
+            vendorRepository.delete(vendor);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to delete vendor with id: " + vendorId, e);
+        }
     }
 
     public VendorDTO getVendorById(Long vendorId) {
@@ -170,5 +226,11 @@ public class VendorService {
         return vendorDTO;
     }
 
+
+    private String extractS3KeyFromUrl(String logoUrl) {
+        // Assuming logoUrl is in the format: https://bucket-name.s3.region.amazonaws.com/key
+        String[] parts = logoUrl.split("/");
+        return parts[parts.length - 1]; // Adjust based on actual URL format
+    }
 
 }
