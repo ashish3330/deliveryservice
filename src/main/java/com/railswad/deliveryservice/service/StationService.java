@@ -121,7 +121,7 @@
             stationRepository.delete(station);
         }
 
-        @Cacheable(value = "station", key = "#stationId")
+//        @Cacheable(value = "station", key = "#stationId")
         public StationDTO getStationById(Integer stationId) {
             Station station = stationRepository.findById(stationId)
                     .orElseThrow(() -> new ResourceNotFoundException("Station not found with id: " + stationId));
