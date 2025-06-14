@@ -11,7 +11,6 @@ import com.railswad.deliveryservice.repository.UserRepository;
 import com.railswad.deliveryservice.repository.UserRoleRepository;
 import com.railswad.deliveryservice.repository.VendorRepository;
 import jakarta.transaction.Transactional;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -45,14 +44,6 @@ public class VendorService {
         Station station = stationRepository.findById(Math.toIntExact(vendorDTO.getStationId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Station not found with id: " + vendorDTO.getStationId()));
 
-        Vendor vendor = getVendor(vendorDTO, user, station);
-
-        Vendor savedVendor = vendorRepository.save(vendor);
-        vendorDTO.setVendorId(savedVendor.getVendorId());
-    }
-
-    @NotNull
-    private static Vendor getVendor(VendorDTO vendorDTO, User user, Station station) {
         Vendor vendor = new Vendor();
         vendor.setUser(user);
         vendor.setBusinessName(vendorDTO.getBusinessName());
@@ -68,7 +59,9 @@ public class VendorService {
         vendor.setVerified(vendorDTO.isVerified());
         vendor.setRating(vendorDTO.getRating());
         vendor.setActiveStatus(vendorDTO.isActiveStatus());
-        return vendor;
+
+        Vendor savedVendor = vendorRepository.save(vendor);
+        vendorDTO.setVendorId(savedVendor.getVendorId());
     }
 
     public VendorDTO updateVendor(Long vendorId, VendorDTO vendorDTO) {
