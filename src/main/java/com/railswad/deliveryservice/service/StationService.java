@@ -184,7 +184,7 @@
         }
 
         public static class StationSpecification {
-            public static Specification<Station> filterBy(String stationName, String stationCode, String state) {
+            public static Specification<Station> filterBy(String stationName, String stationCode, String city) {
                 return (root, query, cb) -> {
                     List<Predicate> predicates = new ArrayList<>();
                     if (StringUtils.hasText(stationName)) {
@@ -193,8 +193,8 @@
                     if (StringUtils.hasText(stationCode)) {
                         predicates.add(cb.like(cb.lower(root.get("stationCode")), "%" + stationCode.toLowerCase() + "%"));
                     }
-                    if (StringUtils.hasText(state)) {
-                        predicates.add(cb.like(cb.lower(root.get("state")), "%" + state.toLowerCase() + "%"));
+                    if (StringUtils.hasText(city)) {
+                        predicates.add(cb.like(cb.lower(root.get("state")), "%" + city.toLowerCase() + "%"));
                     }
                     return cb.and(predicates.toArray(new Predicate[0]));
                 };
