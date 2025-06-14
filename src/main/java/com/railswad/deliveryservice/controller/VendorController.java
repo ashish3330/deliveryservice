@@ -43,8 +43,6 @@ public class VendorController {
     public ResponseEntity<Page<VendorDTO>> getAllVendors(Pageable pageable) {
         Page<VendorDTO> vendors = vendorService.getAllVendors(pageable);
         return ResponseEntity.ok(vendors);
-
-
     }
     @GetMapping("/stations/{stationId}")
     public ResponseEntity<Page<VendorDTO>> getVendorsByStationId(@PathVariable Long stationId, Pageable pageable) {

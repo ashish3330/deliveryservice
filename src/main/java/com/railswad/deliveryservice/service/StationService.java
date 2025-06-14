@@ -129,11 +129,11 @@
         }
 
         @Cacheable(value = "stations", key = "#stationName + '-' + #stationCode + '-' + #state")
-        public List<StationDTO> getStations(String stationName, String stationCode, String state) {
+        public List<StationDTO> getStations(String stationName, String stationCode, String city) {
             List<Station> stations;
 
-            if (StringUtils.hasText(stationName) || StringUtils.hasText(stationCode) || StringUtils.hasText(state)) {
-                Specification<Station> spec = StationSpecification.filterBy(stationName, stationCode, state);
+            if (StringUtils.hasText(stationName) || StringUtils.hasText(stationCode) || StringUtils.hasText(city)) {
+                Specification<Station> spec = StationSpecification.filterBy(stationName, stationCode, city);
                 stations = stationRepository.findAll(spec);
             } else {
                 stations = stationRepository.findAll();

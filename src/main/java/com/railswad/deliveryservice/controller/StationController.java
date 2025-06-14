@@ -73,8 +73,8 @@ public class StationController {
     public List<StationDTO> getStations(
             @RequestParam(required = false) String stationName,
             @RequestParam(required = false) String stationCode,
-            @RequestParam(required = false) String state) {
-        return stationService.getStations(stationName, stationCode, state);
+            @RequestParam(required = false) String city) {
+        return stationService.getStations(stationName, stationCode, city);
     }
 
 

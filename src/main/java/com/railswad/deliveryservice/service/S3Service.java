@@ -114,7 +114,8 @@ public class S3Service {
         }
     }
 
-    public byte[] getFileBinaryDataBySystemFileName(String systemFileName) throws IOException {
+    public byte[] getFileBinaryData(FileEntity fileEntity) throws IOException {
+        String systemFileName = fileEntity.getSystemFileName();
         logger.info("Retrieving file with system file name: {}", systemFileName);
 
         if (systemFileName == null || systemFileName.trim().isEmpty()) {
@@ -122,43 +123,50 @@ public class S3Service {
             throw new IllegalArgumentException("Invalid system file name: " + systemFileName);
         }
 
-        // Check if file exists in database
-        FileEntity fileEntity = fileRepository.findBySystemFileName(systemFileName)
-                .orElseGet(() -> {
-                    logger.warn("File not found in database: {}. Attempting to check S3.", systemFileName);
-                    try {
-                        s3Client.headObject(builder -> builder.bucket(bucketName).key(systemFileName));
-                        logger.info("File exists in S3, creating temporary FileEntity: {}", systemFileName);
-                        FileEntity tempEntity = new FileEntity();
-                        tempEntity.setSystemFileName(systemFileName);
-                        tempEntity.setFileUrl(systemFileName);
-                        return tempEntity;
-                    } catch (NoSuchKeyException e) {
-                        logger.error("File not found in S3: {}", systemFileName);
-                        throw new RuntimeException("File not found in S3: " + systemFileName, e);
-                    } catch (S3Exception e) {
-                        logger.error("Error checking S3 for file: {}", e.getMessage(), e);
-                        throw new RuntimeException("Error checking S3: " + e.getMessage(), e);
-                    }
-                });
+        // Verify file exists in S3
+        try {
+            s3Client.headObject(builder -> builder.bucket(bucketName).key(systemFileName));
+            logger.info("File exists in S3: {}", systemFileName);
+        } catch (NoSuchKeyException e) {
+            logger.error("File not found in S3: {}", systemFileName);
+            throw new RuntimeException("File not found in S3: " + systemFileName, e);
+        } catch (S3Exception e) {
+            logger.error("Error checking S3 for file: {}", e.getMessage(), e);
+            throw new RuntimeException("Error checking S3: " + e.getMessage(), e);
+        }
 
         String presignedUrl = generatePresignedUrl(systemFileName);
-        try (CloseableHttpResponse response = httpClient.execute(new HttpGet(presignedUrl))) {
+        logger.debug("Generated presigned URL: {}", presignedUrl);
+
+        HttpGet httpGet = new HttpGet(presignedUrl);
+        logger.debug("Executing HTTP GET request to: {}", presignedUrl);
+        try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
             int statusCode = response.getStatusLine().getStatusCode();
+            logger.debug("HTTP response status: {}", statusCode);
             if (statusCode == 200) {
                 logger.info("File retrieved successfully: {}", systemFileName);
                 return EntityUtils.toByteArray(response.getEntity());
             } else {
-                logger.error("Failed to fetch file, status: {}", statusCode);
+                logger.error("Failed to fetch file, status: {}, reason: {}", statusCode, response.getStatusLine().getReasonPhrase());
                 if (statusCode == 401) {
                     throw new RuntimeException("Unauthorized access to file: check S3 credentials or bucket permissions");
+                } else if (statusCode == 403) {
+                    throw new RuntimeException("Forbidden access to file: check bucket policies and IAM permissions");
                 }
-                throw new RuntimeException("Failed to fetch file, status: " + statusCode);
+                throw new RuntimeException("Failed to fetch file, status: " + statusCode + ", reason: " + response.getStatusLine().getReasonPhrase());
             }
         } catch (IOException e) {
             logger.error("Failed to download file: {}", e.getMessage(), e);
             throw new IOException("Failed to download file: " + e.getMessage(), e);
         }
+    }
+
+    // Deprecated method, kept for backward compatibility
+    public byte[] getFileBinaryDataBySystemFileName(String systemFileName) throws IOException {
+        logger.warn("Using deprecated method getFileBinaryDataBySystemFileName. Use getFileBinaryData(FileEntity) instead.");
+        FileEntity fileEntity = fileRepository.findBySystemFileName(systemFileName)
+                .orElseThrow(() -> new RuntimeException("File not found in database: " + systemFileName));
+        return getFileBinaryData(fileEntity);
     }
 
     public String getPresignedUrlBySystemFileName(String systemFileName) {

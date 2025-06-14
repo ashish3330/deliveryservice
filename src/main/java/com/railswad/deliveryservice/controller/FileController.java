@@ -2,7 +2,6 @@ package com.railswad.deliveryservice.controller;
 
 import com.railswad.deliveryservice.dto.FileResponseDto;
 import com.railswad.deliveryservice.entity.FileEntity;
-import com.railswad.deliveryservice.exception.FileProcessingException;
 import com.railswad.deliveryservice.repository.FileRepository;
 import com.railswad.deliveryservice.service.S3Service;
 import org.springframework.http.HttpHeaders;
@@ -30,7 +29,7 @@ public class FileController {
             FileEntity fileEntity = s3Service.uploadFile(file);
 
             FileResponseDto responseDto = new FileResponseDto();
-            responseDto.setFileUrl(fileEntity.getFileUrl()); // Stores systemFileName
+            responseDto.setFileUrl(fileEntity.getFileUrl()); // Stores full systemFileName
             responseDto.setOriginalFileName(fileEntity.getOriginalFileName());
             responseDto.setContentType(fileEntity.getContentType());
             responseDto.setFileSize(fileEntity.getFileSize());
@@ -47,10 +46,12 @@ public class FileController {
     @GetMapping("/download")
     public ResponseEntity<byte[]> getFileByUrl(@RequestParam("systemFileName") String systemFileName) {
         try {
+            // Fetch FileEntity using the full systemFileName (e.g., a6adfea7-111d-4cae-b66a-7e51d37fc6e9-icons8-machine-100.png)
             FileEntity fileEntity = fileRepository.findByFileUrl(systemFileName)
                     .orElseThrow(() -> new RuntimeException("File not found with systemFileName: " + systemFileName));
 
-            byte[] fileData = s3Service.getFileBinaryDataBySystemFileName(systemFileName);
+            // Pass the FileEntity to S3Service to fetch the file data
+            byte[] fileData = s3Service.getFileBinaryData(fileEntity);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.parseMediaType(
