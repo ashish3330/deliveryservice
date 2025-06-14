@@ -66,7 +66,6 @@ public class S3Service {
         }
     }
 
-    @CacheEvict(value = {"fileData", "presignedUrl", "fileEntity"}, key = "#result.systemFileName")
     public FileEntity uploadFile(MultipartFile file) throws IOException {
         logger.info("Uploading file: {}", file.getOriginalFilename());
 
@@ -158,7 +157,6 @@ public class S3Service {
         }
     }
 
-    @Cacheable(value = "fileEntity", key = "#systemFileName", unless = "#result == null")
     public byte[] getFileBinaryDataBySystemFileName(String systemFileName) throws IOException {
         logger.warn("Using deprecated method getFileBinaryDataBySystemFileName. Use getFileBinaryData(FileEntity) instead.");
         FileEntity fileEntity = fileRepository.findBySystemFileName(systemFileName)
@@ -166,7 +164,6 @@ public class S3Service {
         return getFileBinaryData(fileEntity);
     }
 
-    @Cacheable(value = "presignedUrl", key = "#systemFileName", unless = "#result == null")
     public String getPresignedUrlBySystemFileName(String systemFileName) {
         logger.info("Generating pre-signed URL for system file name: {}", systemFileName);
 
