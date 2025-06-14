@@ -11,9 +11,6 @@ import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.exception.SdkClientException;
@@ -117,7 +114,6 @@ public class S3Service {
         }
     }
 
-    @Cacheable(value = "fileData", key = "#fileEntity.systemFileName", unless = "#result == null")
     public byte[] getFileBinaryData(FileEntity fileEntity) throws IOException {
         String systemFileName = fileEntity.getSystemFileName();
         logger.info("Retrieving file with system file name: {}", systemFileName);
@@ -157,6 +153,7 @@ public class S3Service {
         }
     }
 
+    // Deprecated method, kept for backward compatibility
     public byte[] getFileBinaryDataBySystemFileName(String systemFileName) throws IOException {
         logger.warn("Using deprecated method getFileBinaryDataBySystemFileName. Use getFileBinaryData(FileEntity) instead.");
         FileEntity fileEntity = fileRepository.findBySystemFileName(systemFileName)
@@ -175,7 +172,6 @@ public class S3Service {
         return generatePresignedUrl(systemFileName);
     }
 
-    @CachePut(value = "presignedUrl", key = "#fileName")
     private String generatePresignedUrl(String fileName) {
         try {
             GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
