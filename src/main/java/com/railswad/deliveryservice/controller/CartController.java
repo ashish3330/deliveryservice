@@ -58,9 +58,17 @@ public class CartController {
 
     private Long getCustomerIdFromJwt() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        if (principal instanceof Jwt jwt) {
-            return Long.valueOf(jwt.getClaimAsString("userId"));
+        System.out.println("Principal: " + principal);
+        System.out.println("Principal Class: " + (principal != null ? principal.getClass().getName() : "null"));
+        if (principal instanceof Jwt) {
+            Jwt jwt = (Jwt) principal;
+            String userId = jwt.getClaimAsString("userId");
+            System.out.println("JWT Claims: " + jwt.getClaims());
+            if (userId == null) {
+                throw new IllegalStateException("userId claim missing in JWT");
+            }
+            return Long.valueOf(userId);
         }
-        throw new IllegalStateException("Invalid JWT token or user not authenticated");
+        throw new IllegalStateException("Invalid JWT token or user not authenticated. Principal type: " + (principal != null ? principal.getClass().getName() : "null"));
     }
 }
