@@ -61,33 +61,23 @@ public class ExcelHelper {
                     dto.setCategoryName(getValue(formatter, row, headerMap, "categoryname"));
                     dto.setItemName(getValue(formatter, row, headerMap, "itemname"));
                     dto.setDescription(getValue(formatter, row, headerMap, "description"));
-
                     String basePriceStr = getValue(formatter, row, headerMap, "basePrice");
                     dto.setBasePrice(basePriceStr.isEmpty() ? null : new BigDecimal(basePriceStr));
-
-                    String vendorPriceStr = getValue(formatter, row, headerMap, "basePrice");
+                    String vendorPriceStr = getValue(formatter, row, headerMap, "vendorPrice");
                     dto.setVendorPrice(basePriceStr.isEmpty() ? null : new BigDecimal(vendorPriceStr));
-
                     String vegetarianStr = getValue(formatter, row, headerMap, "vegetarian");
                     dto.setVegetarian(vegetarianStr.equalsIgnoreCase("true"));
-
                     String availableStr = getValue(formatter, row, headerMap, "available");
                     dto.setAvailable(availableStr.equalsIgnoreCase("true"));
-
                     String prepTime = getValue(formatter, row, headerMap, "preparationtimemin");
                     dto.setPreparationTimeMin(prepTime.isEmpty() ? null : Integer.parseInt(prepTime));
-
                     dto.setImageUrl(getValue(formatter, row, headerMap, "imageurl"));
-
                     String orderStr = getValue(formatter, row, headerMap, "displayorder");
                     dto.setDisplayOrder(orderStr.isEmpty() ? 0 : Integer.parseInt(orderStr));
-
                     String startTime = getValue(formatter, row, headerMap, "availablestarttime");
                     dto.setAvailableStartTime(startTime.isEmpty() ? null : LocalTime.parse(startTime));
-
                     String endTime = getValue(formatter, row, headerMap, "availableendtime");
                     dto.setAvailableEndTime(endTime.isEmpty() ? null : LocalTime.parse(endTime));
-
                     menuItemDTOs.add(dto);
                     logger.debug("Parsed row {}: {}", row.getRowNum() + 1, dto);
                 } catch (Exception e) {

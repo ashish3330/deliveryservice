@@ -19,14 +19,14 @@ public class CartController {
     private CartService cartService;
 
     @PostMapping("/add-item")
-    @PreAuthorize("hasRole('CUSTOMER')")
+//    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<CartSummaryDTO> addItemToCart(@RequestBody AddItemRequest request) {
         Long customerId = getCustomerIdFromJwt();
         return ResponseEntity.ok(cartService.addItemToCart(customerId, request));
     }
 
     @DeleteMapping("/items/{itemId}")
-    @PreAuthorize("hasRole('CUSTOMER')")
+//    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<CartSummaryDTO> removeItemFromCart(
             @RequestParam Long vendorId,
             @PathVariable Long itemId) {
@@ -35,21 +35,21 @@ public class CartController {
     }
 
     @GetMapping("/summary")
-    @PreAuthorize("hasRole('CUSTOMER')")
+//    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<CartSummaryDTO> getCartSummary(@RequestParam Long vendorId) {
         Long customerId = getCustomerIdFromJwt();
         return ResponseEntity.ok(cartService.getCartSummary(customerId, vendorId));
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('CUSTOMER')")
+//    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<CartDTO> getCart(@RequestParam Long vendorId) {
         Long customerId = getCustomerIdFromJwt();
         return ResponseEntity.ok(cartService.getCart(customerId, vendorId));
     }
 
     @DeleteMapping
-    @PreAuthorize("hasRole('CUSTOMER')")
+//    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<Void> clearCart(@RequestParam Long vendorId) {
         Long customerId = getCustomerIdFromJwt();
         cartService.clearCart(customerId, vendorId);
@@ -58,8 +58,7 @@ public class CartController {
 
     private Long getCustomerIdFromJwt() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        if (principal instanceof Jwt) {
-            Jwt jwt = (Jwt) principal;
+        if (principal instanceof Jwt jwt) {
             return Long.valueOf(jwt.getClaimAsString("userId"));
         }
         throw new IllegalStateException("Invalid JWT token or user not authenticated");
