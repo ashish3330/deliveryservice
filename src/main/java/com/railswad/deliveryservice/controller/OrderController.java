@@ -30,7 +30,7 @@ public class OrderController {
 
 
     @PostMapping
-    @PreAuthorize("hasRole('CUSTOMER')")
+//    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<OrderDTO> createOrder(@RequestBody CreateOrderRequest request) {
         Long customerId = getCustomerIdFromJwt();
         String cartId = cartService.getCartId(customerId, request.getVendorId());
