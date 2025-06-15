@@ -338,7 +338,8 @@ public class AuthService implements UserDetailsService {
                     identifier,
                     user.getUserId(),
                     tokenRole,
-                    token
+                    token,
+                    user.getUsername()
             );
         } catch (Exception e) {
             throw new ServiceException("JWT_GENERATION_FAILED", "Failed to generate authentication token");
