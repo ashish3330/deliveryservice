@@ -81,18 +81,14 @@ public class OrderService {
             Station deliveryStation = stationRepository.findById(Math.toIntExact(cart.getDeliveryStationId()))
                     .orElseThrow(() -> new ResourceNotFoundException("Station not found with id: " + cart.getDeliveryStationId()));
 
-            logger.debug("Valid entities retrieved for order creation: customer ID {}, vendor ID {}, train ID {}, station ID {}",
+                logger.debug("Valid entities retrieved for order creation: customer ID {}, vendor ID {}, train ID {}, station ID {}",
                     cart.getCustomerId(), cart.getVendorId(), cart.getTrainId(), cart.getDeliveryStationId());
 
             Order order = new Order();
             order.setCustomer(customer);
             order.setVendor(vendor);
-            order.setTrainId(cart.getTrainId());
-            order.setPnrNumber(cart.getPnrNumber());
-            order.setCoachNumber(cart.getCoachNumber());
-            order.setSeatNumber(cart.getSeatNumber());
-            order.setDeliveryStation(deliveryStation);
-            order.setDeliveryTime(deliveryTime);
+
+
             order.setOrderStatus(OrderStatus.PLACED);
             order.setPaymentMethod(paymentMethod);
             order.setDeliveryInstructions(cart.getDeliveryInstructions());
@@ -101,6 +97,12 @@ public class OrderService {
             CartSummaryDTO summary = cartService.getCartSummary(cart.getCustomerId(), cart.getVendorId());
             order.setTotalAmount(summary.getSubtotal());
             order.setTaxAmount(summary.getTaxAmount());
+            order.setCoachNumber(summary.getCoachNumber());
+            order.setSeatNumber(summary.getSeatNumber());
+            order.setDeliveryStation(deliveryStation);
+            order.setDeliveryTime(deliveryTime);
+            order.setTrainId(summary.getTrainId());
+            order.setPnrNumber(summary.getPnrNumber());
             order.setDeliveryCharges(summary.getDeliveryCharges());
             order.setFinalAmount(summary.getFinalAmount());
             order.setPaymentStatus("COD".equals(paymentMethod) ? PaymentStatus.PENDING : PaymentStatus.PROCESSING);
