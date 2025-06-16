@@ -313,21 +313,31 @@ public class OrderService {
         }
     }
 
-    public Page<OrderDTO> getActiveOrdersForVendor(Long vendorId, Pageable pageable) {
-        logger.info("Fetching active orders for vendor ID: {}, pageable: page={}, size={}, sort={}",
-                vendorId, pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
+    public Page<OrderDTO> getActiveOrdersForVendor(Long userId, Pageable pageable) {
+        logger.info("Fetching active orders for user ID: {}, pageable: page={}, size={}, sort={}",
+                userId, pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
         try {
+            // Fetch the Vendor entity by userId
+            Vendor vendor = vendorRepository.findByUserUserId(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Vendor not found for user ID: " + userId));
+            Long vendorId = vendor.getVendorId();
+
+            // Check if vendor exists
             vendorRepository.findById(vendorId)
                     .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + vendorId));
+
+            // Specification to filter active orders for the vendor
             Specification<Order> spec = (root, query, cb) -> cb.and(
                     cb.equal(root.get("vendor").get("vendorId"), vendorId),
                     cb.not(root.get("orderStatus").in(Arrays.asList(OrderStatus.DELIVERED, OrderStatus.CANCELLED)))
             );
+
+            // Fetch and convert orders to DTOs
             Page<OrderDTO> orders = orderRepository.findAll(spec, pageable).map(this::convertToOrderDTO);
             logger.info("Successfully fetched {} active orders for vendor ID: {}", orders.getTotalElements(), vendorId);
             return orders;
         } catch (Exception e) {
-            logger.error("Failed to fetch active orders for vendor ID: {}, error: {}", vendorId, e.getMessage(), e);
+            logger.error("Failed to fetch active orders for user ID: {}, error: {}", userId, e.getMessage(), e);
             throw e;
         }
     }

@@ -108,8 +108,9 @@ public class OrderController {
     @GetMapping("/vendor/active")
 //    @PreAuthorize("hasRole('VENDOR')")
     public ResponseEntity<Page<OrderDTO>> getActiveOrdersForVendor(Pageable pageable) {
-        Long vendorId = getAuthenticatedUserId();
-        return ResponseEntity.ok(orderService.getActiveOrdersForVendor(vendorId, pageable));
+        Long userId = getAuthenticatedUserId();
+
+        return ResponseEntity.ok(orderService.getActiveOrdersForVendor(userId, pageable));
     }
 
 
