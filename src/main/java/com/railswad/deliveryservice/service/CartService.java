@@ -120,6 +120,11 @@ public class CartService {
         CartSummaryDTO summary = new CartSummaryDTO();
         summary.setCartId(cartId);
         summary.setCustomerId(customerId);
+        summary.setVendorId(cart.getVendorId());
+        summary.setTrainId(cart.getTrainId());
+        summary.setPnrNumber(cart.getPnrNumber());
+        summary.setCoachNumber(cart.getCoachNumber());
+        summary.setSeatNumber(cart.getSeatNumber());
         summary.setItems(cart.getItems());
 
         double subtotal = cart.getItems().stream()
@@ -156,7 +161,7 @@ public class CartService {
         if (cartId == null) {
             throw new ResourceNotFoundException("No cart found for customer ID: " + customerId + " and vendor ID: " + vendorId);
         }
-        redisTemplate.delete(CART_KEY_PREFIX+ cartId);
+        redisTemplate.delete(CART_KEY_PREFIX + cartId);
         redisTemplate.delete(CART_MAPPING_PREFIX + customerId + ":" + vendorId);
         logger.info("Cleared cart ID: {}, took {}ms", cartId, System.currentTimeMillis() - startTime);
     }
