@@ -7,6 +7,9 @@ import com.railswad.deliveryservice.entity.OrderStatus;
 import com.railswad.deliveryservice.exception.ResourceNotFoundException;
 import com.railswad.deliveryservice.service.OrderService;
 import com.railswad.deliveryservice.service.CartService;
+import com.railswad.deliveryservice.util.JwtUtil;
+import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,14 +17,20 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.ZonedDateTime;
 
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
+    private  final Logger logger = org.slf4j.LoggerFactory.getLogger(OrderController.class);
 
+    @Autowired
+    private   JwtUtil  jwtUtil;
     @Autowired
     private OrderService orderService;
 
@@ -32,7 +41,8 @@ public class OrderController {
     @PostMapping
 //    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<OrderDTO> createOrder(@RequestBody CreateOrderRequest request) {
-        Long customerId = getCustomerIdFromJwt();
+
+        Long customerId = getAuthenticatedUserId();
         String cartId = cartService.getCartId(customerId, request.getVendorId());
         if (cartId == null) {
             throw new ResourceNotFoundException("No cart found for customer ID: " + customerId + " and vendor ID: " + request.getVendorId());
@@ -80,13 +90,27 @@ public class OrderController {
                 pageable));
     }
 
-    private Long getCustomerIdFromJwt() {
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        if (principal instanceof Jwt) {
-            Jwt jwt = (Jwt) principal;
-            return Long.valueOf(jwt.getClaimAsString("userId"));
+    private Long getAuthenticatedUserId() {
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attributes == null) {
+            logger.error("No request context available");
+            throw new ResourceNotFoundException("No request context available");
         }
-        throw new IllegalStateException("Invalid JWT token or user not authenticated");
+
+        HttpServletRequest request = attributes.getRequest();
+        String authHeader = request.getHeader("Authorization");
+        if (!StringUtils.hasText(authHeader) || !authHeader.startsWith("Bearer ")) {
+            logger.error("No valid JWT token found in request");
+            throw new ResourceNotFoundException("No valid JWT token found");
+        }
+
+        String token = authHeader.substring(7);
+        try {
+            return jwtUtil.extractUserId(token);
+        } catch (Exception e) {
+            logger.error("Failed to extract userId from JWT: {}", e.getMessage());
+            throw new ResourceNotFoundException("Invalid JWT token");
+        }
     }
 
 

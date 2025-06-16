@@ -78,8 +78,6 @@ public class OrderService {
                     .orElseThrow(() -> new ResourceNotFoundException("Customer not found with id: " + cart.getCustomerId()));
             Vendor vendor = vendorRepository.findById(cart.getVendorId())
                     .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + cart.getVendorId()));
-            Train train = trainRepository.findById(Math.toIntExact(cart.getTrainId()))
-                    .orElseThrow(() -> new ResourceNotFoundException("Train not found with id: " + cart.getTrainId()));
             Station deliveryStation = stationRepository.findById(Math.toIntExact(cart.getDeliveryStationId()))
                     .orElseThrow(() -> new ResourceNotFoundException("Station not found with id: " + cart.getDeliveryStationId()));
 
@@ -89,7 +87,7 @@ public class OrderService {
             Order order = new Order();
             order.setCustomer(customer);
             order.setVendor(vendor);
-            order.setTrain(train);
+            order.setTrainId(cart.getTrainId());
             order.setPnrNumber(cart.getPnrNumber());
             order.setCoachNumber(cart.getCoachNumber());
             order.setSeatNumber(cart.getSeatNumber());
@@ -280,7 +278,7 @@ public class OrderService {
         orderDTO.setOrderId(order.getOrderId());
         orderDTO.setCustomerId(order.getCustomer().getUserId());
         orderDTO.setVendorId(order.getVendor().getVendorId());
-        orderDTO.setTrainId(Long.valueOf(order.getTrain().getTrainId()));
+        orderDTO.setTrainId(order.getTrainId());
         orderDTO.setPnrNumber(order.getPnrNumber());
         orderDTO.setCoachNumber(order.getCoachNumber());
         orderDTO.setSeatNumber(order.getSeatNumber());

@@ -22,9 +22,8 @@ public class Order {
     @JoinColumn(name = "vendor_id")
     private Vendor vendor;
 
-    @ManyToOne
-    @JoinColumn(name = "train_id")
-    private Train train;
+    @Column(name = "train_id", nullable = false)
+    private Long trainId;
 
     @Column(name = "pnr_number")
     private String pnrNumber;
