@@ -60,7 +60,7 @@ public class OrderService {
     @Caching(evict = {
             @CacheEvict(value = "orders", key = "#result.orderId", condition = "#result != null")
     })
-    public OrderDTO createOrderFromCart(String cartId, String paymentMethod, ZonedDateTime deliveryTime) {
+    public OrderDTO createOrderFromCart(String cartId, String paymentMethod, ZonedDateTime deliveryTime, CreateOrderRequest request) {
         long startTime = System.currentTimeMillis();
         logger.info("Starting order creation from cart ID: {}", cartId);
 
@@ -97,12 +97,12 @@ public class OrderService {
             CartSummaryDTO summary = cartService.getCartSummary(cart.getCustomerId(), cart.getVendorId());
             order.setTotalAmount(summary.getSubtotal());
             order.setTaxAmount(summary.getTaxAmount());
-            order.setCoachNumber(summary.getCoachNumber());
-            order.setSeatNumber(summary.getSeatNumber());
+            order.setCoachNumber(request.getCoachNumber());
+            order.setSeatNumber(request.getSeatNumber());
             order.setDeliveryStation(deliveryStation);
             order.setDeliveryTime(deliveryTime);
-            order.setTrainId(summary.getTrainId());
-            order.setPnrNumber(summary.getPnrNumber());
+            order.setTrainId(request.getTrainId());
+            order.setPnrNumber(request.getPnrNumber());
             order.setDeliveryCharges(summary.getDeliveryCharges());
             order.setFinalAmount(summary.getFinalAmount());
             order.setPaymentStatus("COD".equals(paymentMethod) ? PaymentStatus.PENDING : PaymentStatus.PROCESSING);
