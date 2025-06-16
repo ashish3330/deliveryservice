@@ -75,13 +75,13 @@ public class OrderController {
     }
 
     @GetMapping("/{orderId}")
-    @PreAuthorize("hasAnyRole('CUSTOMER', 'VENDOR', 'ADMIN')")
+//    @PreAuthorize("hasAnyRole('CUSTOMER', 'VENDOR', 'ADMIN')")
     public ResponseEntity<OrderDTO> getOrderById(@PathVariable Long orderId) {
         return ResponseEntity.ok(orderService.getOrderById(orderId));
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+//    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<OrderDTO>> getAllOrders(
             @RequestBody(required = false) OrderFilterDTO orderFilterDTO,
             Pageable pageable) {
