@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.ZonedDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -271,6 +272,81 @@ public class OrderService {
             return orders;
         } catch (Exception e) {
             logger.error("Failed to fetch orders with filters, error: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+    public Page<OrderDTO> getActiveOrdersForUser(Long userId, Pageable pageable) {
+        logger.info("Fetching active orders for user ID: {}, pageable: page={}, size={}, sort={}",
+                userId, pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
+        try {
+            userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+            Specification<Order> spec = (root, query, cb) -> cb.and(
+                    cb.equal(root.get("customer").get("userId"), userId),
+                    cb.not(root.get("orderStatus").in(Arrays.asList(OrderStatus.DELIVERED, OrderStatus.CANCELLED)))
+            );
+            Page<OrderDTO> orders = orderRepository.findAll(spec, pageable).map(this::convertToOrderDTO);
+            logger.info("Successfully fetched {} active orders for user ID: {}", orders.getTotalElements(), userId);
+            return orders;
+        } catch (Exception e) {
+            logger.error("Failed to fetch active orders for user ID: {}, error: {}", userId, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    public Page<OrderDTO> getHistoricalOrdersForUser(Long userId, Pageable pageable) {
+        logger.info("Fetching historical orders for user ID: {}, pageable: page={}, size={}, sort={}",
+                userId, pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
+        try {
+            userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+            Specification<Order> spec = (root, query, cb) -> cb.and(
+                    cb.equal(root.get("customer").get("userId"), userId),
+                    root.get("orderStatus").in(Arrays.asList(OrderStatus.DELIVERED, OrderStatus.CANCELLED))
+            );
+            Page<OrderDTO> orders = orderRepository.findAll(spec, pageable).map(this::convertToOrderDTO);
+            logger.info("Successfully fetched {} historical orders for user ID: {}", orders.getTotalElements(), userId);
+            return orders;
+        } catch (Exception e) {
+            logger.error("Failed to fetch historical orders for user ID: {}, error: {}", userId, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    public Page<OrderDTO> getActiveOrdersForVendor(Long vendorId, Pageable pageable) {
+        logger.info("Fetching active orders for vendor ID: {}, pageable: page={}, size={}, sort={}",
+                vendorId, pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
+        try {
+            vendorRepository.findById(vendorId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + vendorId));
+            Specification<Order> spec = (root, query, cb) -> cb.and(
+                    cb.equal(root.get("vendor").get("vendorId"), vendorId),
+                    cb.not(root.get("orderStatus").in(Arrays.asList(OrderStatus.DELIVERED, OrderStatus.CANCELLED)))
+            );
+            Page<OrderDTO> orders = orderRepository.findAll(spec, pageable).map(this::convertToOrderDTO);
+            logger.info("Successfully fetched {} active orders for vendor ID: {}", orders.getTotalElements(), vendorId);
+            return orders;
+        } catch (Exception e) {
+            logger.error("Failed to fetch active orders for vendor ID: {}, error: {}", vendorId, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    public Page<OrderDTO> getHistoricalOrdersForVendor(Long vendorId, Pageable pageable) {
+        logger.info("Fetching historical orders for vendor ID: {}, pageable: page={}, size={}, sort={}",
+                vendorId, pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
+        try {
+            vendorRepository.findById(vendorId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + vendorId));
+            Specification<Order> spec = (root, query, cb) -> cb.and(
+                    cb.equal(root.get("vendor").get("vendorId"), vendorId),
+                    root.get("orderStatus").in(Arrays.asList(OrderStatus.DELIVERED, OrderStatus.CANCELLED))
+            );
+            Page<OrderDTO> orders = orderRepository.findAll(spec, pageable).map(this::convertToOrderDTO);
+            logger.info("Successfully fetched {} historical orders for vendor ID: {}", orders.getTotalElements(), vendorId);
+            return orders;
+        } catch (Exception e) {
+            logger.error("Failed to fetch historical orders for vendor ID: {}, error: {}", vendorId, e.getMessage(), e);
             throw e;
         }
     }

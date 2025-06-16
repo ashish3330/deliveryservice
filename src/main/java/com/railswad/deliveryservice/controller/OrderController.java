@@ -55,7 +55,7 @@ public class OrderController {
         return ResponseEntity.ok(orderDTO);
     }
     @PutMapping("/{orderId}/status")
-    @PreAuthorize("hasRole('VENDOR')")
+//    @PreAuthorize("hasRole('VENDOR')")
     public ResponseEntity<OrderDTO> updateOrderStatus(
             @PathVariable Long orderId,
             @RequestParam OrderStatus status,
@@ -65,7 +65,7 @@ public class OrderController {
     }
 
     @PostMapping("/{orderId}/cod/complete")
-    @PreAuthorize("hasRole('VENDOR')")
+//    @PreAuthorize("hasRole('VENDOR')")
     public ResponseEntity<String> markCodPaymentCompleted(
             @PathVariable Long orderId,
             @RequestParam Long updatedById,
@@ -90,6 +90,46 @@ public class OrderController {
                 pageable));
     }
 
+
+    @GetMapping("/user/active")
+//    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<Page<OrderDTO>> getActiveOrdersForUser(Pageable pageable) {
+        Long userId = getAuthenticatedUserId();
+        return ResponseEntity.ok(orderService.getActiveOrdersForUser(userId, pageable));
+    }
+
+    @GetMapping("/user/historical")
+//    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<Page<OrderDTO>> getHistoricalOrdersForUser(Pageable pageable) {
+        Long userId = getAuthenticatedUserId();
+        return ResponseEntity.ok(orderService.getHistoricalOrdersForUser(userId, pageable));
+    }
+
+    @GetMapping("/vendor/active")
+//    @PreAuthorize("hasRole('VENDOR')")
+    public ResponseEntity<Page<OrderDTO>> getActiveOrdersForVendor(Pageable pageable) {
+        Long vendorId = getAuthenticatedUserId();
+        return ResponseEntity.ok(orderService.getActiveOrdersForVendor(vendorId, pageable));
+    }
+
+
+//    @GetMapping("/invoice/{orderId}}")
+////    @PreAuthorize("hasRole('VENDOR')")
+//    public ResponseEntity<Page<OrderDTO>> getActiveOrdersForVendor(PathVariable orderId) {
+//        Long userId = getAuthenticatedUserId();
+//        return ResponseEntity.ok(orderService.getInvoiceByOrderId(vendorId, pageable));
+//    }
+
+
+
+
+    @GetMapping("/vendor/historical")
+//    @PreAuthorize("hasRole('VENDOR')")
+    public ResponseEntity<Page<OrderDTO>> getHistoricalOrdersForVendor(Pageable pageable) {
+        Long vendorId = getAuthenticatedUserId();
+        return ResponseEntity.ok(orderService.getHistoricalOrdersForVendor(vendorId, pageable));
+    }
+
     private Long getAuthenticatedUserId() {
         ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
         if (attributes == null) {
@@ -112,6 +152,5 @@ public class OrderController {
             throw new ResourceNotFoundException("Invalid JWT token");
         }
     }
-
 
 }
