@@ -15,7 +15,8 @@ public class WebConfig {
             @Override
             public void addCorsMappings(@NotNull CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("http://localhost:5173")  // allow frontend
+                        .allowedOrigins("http://localhost:5173")
+                        .allowedOrigins("http://94.136.184.78")// allow frontend
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
                         .allowCredentials(true);  // if you use cookies or authorization headers
