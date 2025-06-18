@@ -14,6 +14,9 @@ import com.railswad.deliveryservice.util.JwtUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -86,11 +89,28 @@ public class ComplaintService {
         }
     }
 
-    public List<ComplaintResponseDTO> getAllComplaints() {
-        logger.info("Fetching all complaints for admin");
-        return complaintRepository.findAll().stream()
-                .map(this::mapToComplaintResponseDTO)
-                .collect(Collectors.toList());
+    public Page<ComplaintResponseDTO> getAllComplaintsPaginated(Pageable pageable, String name, String status) {
+        logger.info("Fetching complaints with pagination, name: {}, status: {}", name, status);
+
+        Specification<Complaint> spec = Specification.where(null);
+
+        if (StringUtils.hasText(name)) {
+            spec = spec.and((root, query, cb) ->
+                    cb.like(cb.lower(root.get("name")), "%" + name.toLowerCase() + "%"));
+        }
+
+        if (StringUtils.hasText(status)) {
+            try {
+                Complaint.ComplaintStatus complaintStatus = Complaint.ComplaintStatus.valueOf(status.toUpperCase());
+                spec = spec.and((root, query, cb) ->
+                        cb.equal(root.get("status"), complaintStatus));
+            } catch (IllegalArgumentException e) {
+                throw new InvalidInputException("Invalid status: " + status);
+            }
+        }
+
+        Page<Complaint> complaints = complaintRepository.findAll(spec, pageable);
+        return complaints.map(this::mapToComplaintResponseDTO);
     }
 
     private void validateComplaintRequest(ComplaintRequestDTO request) {
