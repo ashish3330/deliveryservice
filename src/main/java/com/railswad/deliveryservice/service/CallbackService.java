@@ -11,13 +11,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class CallbackService {
@@ -35,6 +40,7 @@ public class CallbackService {
         callbackRequest.setEmail(request.getEmail());
         callbackRequest.setMobileNumber(request.getMobileNumber());
         callbackRequest.setMessage(request.getMessage());
+        callbackRequest.setStatus(CallbackRequest.CallbackStatus.PENDING);
         callbackRequest.setCreatedAt(ZonedDateTime.now());
         callbackRequest = callbackRequestRepository.save(callbackRequest);
         return mapToCallbackResponseDTO(callbackRequest);
@@ -58,17 +64,33 @@ public class CallbackService {
         }
     }
 
-    public List<CallbackResponseDTO> getAllCallbackRequests() {
-        logger.info("Fetching all callback requests for admin");
-        return callbackRequestRepository.findAll().stream()
-                .map(this::mapToCallbackResponseDTO)
-                .collect(Collectors.toList());
-    }
+    public Page<CallbackResponseDTO> getAllCallbackRequestsPaginated(Pageable pageable, String name, String status) {
+        logger.info("Fetching callbacks with pagination, name: {}, status: {}", name, status);
 
-    public Page<CallbackResponseDTO> getAllCallbackRequestsPaginated(Pageable pageable) {
-        logger.info("Fetching paginated callback requests with page: {}, size: {}", pageable.getPageNumber(), pageable.getPageSize());
-        return callbackRequestRepository.findAll(pageable)
-                .map(this::mapToCallbackResponseDTO);
+        Specification<CallbackRequest> spec = new Specification<CallbackRequest>() {
+            @Override
+            public Predicate toPredicate(Root<CallbackRequest> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
+                List<Predicate> predicates = new ArrayList<>();
+
+                if (StringUtils.hasText(name)) {
+                    predicates.add(cb.like(cb.lower(root.get("name")), "%" + name.toLowerCase() + "%"));
+                }
+
+                if (StringUtils.hasText(status)) {
+                    try {
+                        CallbackRequest.CallbackStatus callbackStatus = CallbackRequest.CallbackStatus.valueOf(status.toUpperCase());
+                        predicates.add(cb.equal(root.get("status"), callbackStatus));
+                    } catch (IllegalArgumentException e) {
+                        throw new InvalidInputException("Invalid status: " + status);
+                    }
+                }
+
+                return cb.and(predicates.toArray(new Predicate[0]));
+            }
+        };
+
+        Page<CallbackRequest> callbacks = callbackRequestRepository.findAll(spec, pageable);
+        return callbacks.map(this::mapToCallbackResponseDTO);
     }
 
     private void validateCallbackRequest(CallbackRequestDTO request) {

@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -19,19 +20,27 @@ public class CallbackController {
     private CallbackService callbackService;
 
     @PostMapping
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<CallbackResponseDTO> submitCallbackRequest(@Valid @RequestBody CallbackRequestDTO request) {
         CallbackResponseDTO response = callbackService.submitCallbackRequest(request);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping
-    public ResponseEntity<Page<CallbackResponseDTO>> getAllCallbackRequests(Pageable pageable) {
-        Page<CallbackResponseDTO> responses = callbackService.getAllCallbackRequestsPaginated(pageable);
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Page<CallbackResponseDTO>> getAllCallbackRequests(
+            Pageable pageable,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String status) {
+        Page<CallbackResponseDTO> responses = callbackService.getAllCallbackRequestsPaginated(pageable, name, status);
         return ResponseEntity.ok(responses);
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<CallbackResponseDTO> updateCallbackStatus(@PathVariable Long id, @Valid @RequestBody StatusUpdateRequestDTO statusUpdate) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<CallbackResponseDTO> updateCallbackStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody StatusUpdateRequestDTO statusUpdate) {
         CallbackResponseDTO response = callbackService.updateCallbackStatus(id, statusUpdate.getStatus());
         return ResponseEntity.ok(response);
     }
