@@ -1,6 +1,5 @@
 package com.railswad.deliveryservice.service;
 
-
 import com.railswad.deliveryservice.dto.CallbackRequestDTO;
 import com.railswad.deliveryservice.dto.CallbackResponseDTO;
 import com.railswad.deliveryservice.entity.CallbackRequest;
@@ -10,6 +9,8 @@ import com.railswad.deliveryservice.repository.CallbackRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -62,6 +63,12 @@ public class CallbackService {
         return callbackRequestRepository.findAll().stream()
                 .map(this::mapToCallbackResponseDTO)
                 .collect(Collectors.toList());
+    }
+
+    public Page<CallbackResponseDTO> getAllCallbackRequestsPaginated(Pageable pageable) {
+        logger.info("Fetching paginated callback requests with page: {}, size: {}", pageable.getPageNumber(), pageable.getPageSize());
+        return callbackRequestRepository.findAll(pageable)
+                .map(this::mapToCallbackResponseDTO);
     }
 
     private void validateCallbackRequest(CallbackRequestDTO request) {
