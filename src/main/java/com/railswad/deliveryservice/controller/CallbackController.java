@@ -2,6 +2,7 @@ package com.railswad.deliveryservice.controller;
 
 import com.railswad.deliveryservice.dto.CallbackRequestDTO;
 import com.railswad.deliveryservice.dto.CallbackResponseDTO;
+import com.railswad.deliveryservice.dto.StatusUpdateRequestDTO;
 import com.railswad.deliveryservice.service.CallbackService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,5 +28,11 @@ public class CallbackController {
     public ResponseEntity<Page<CallbackResponseDTO>> getAllCallbackRequests(Pageable pageable) {
         Page<CallbackResponseDTO> responses = callbackService.getAllCallbackRequestsPaginated(pageable);
         return ResponseEntity.ok(responses);
+    }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<CallbackResponseDTO> updateCallbackStatus(@PathVariable Long id, @Valid @RequestBody StatusUpdateRequestDTO statusUpdate) {
+        CallbackResponseDTO response = callbackService.updateCallbackStatus(id, statusUpdate.getStatus());
+        return ResponseEntity.ok(response);
     }
 }
