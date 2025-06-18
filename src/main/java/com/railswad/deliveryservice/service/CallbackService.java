@@ -40,7 +40,7 @@ public class CallbackService {
         callbackRequest.setEmail(request.getEmail());
         callbackRequest.setMobileNumber(request.getMobileNumber());
         callbackRequest.setMessage(request.getMessage());
-        callbackRequest.setStatus(CallbackRequest.CallbackStatus.PENDING);
+        callbackRequest.setStatus(CallbackRequest.CallbackStatus.OPEN);
         callbackRequest.setCreatedAt(ZonedDateTime.now());
         callbackRequest = callbackRequestRepository.save(callbackRequest);
         return mapToCallbackResponseDTO(callbackRequest);

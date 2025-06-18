@@ -27,7 +27,7 @@ public class CallbackRequest {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private CallbackStatus status = CallbackStatus.PENDING;
+    private CallbackStatus status = CallbackStatus.OPEN;
 
     @Column(name = "created_at", nullable = false)
     private ZonedDateTime createdAt = ZonedDateTime.now();
@@ -36,6 +36,6 @@ public class CallbackRequest {
     private ZonedDateTime updatedAt;
 
     public enum CallbackStatus {
-        PENDING, IN_PROGRESS, COMPLETED
+        OPEN, IN_PROGRESS, COMPLETED
     }
 }
