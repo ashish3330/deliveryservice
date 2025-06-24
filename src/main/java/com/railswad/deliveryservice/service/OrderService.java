@@ -418,10 +418,10 @@ public class OrderService {
                     .orElseThrow(() -> new ResourceNotFoundException("Admin not found with id: " + adminId));
 
             // Validate admin role
-            if (!"ADMIN".equals(admin.getUserRoles())) {
-                logger.warn("User ID: {} is not an admin, cannot update payment status", adminId);
-                throw new IllegalArgumentException("Only admins can update payment status");
-            }
+//            if (!"ADMIN".equals(admin.getUserRoles())) {
+//                logger.warn("User ID: {} is not an admin, cannot update payment status", adminId);
+//                throw new IllegalArgumentException("Only admins can update payment status");
+//            }
 
             // Validate that order is COD
             if (!"COD".equals(order.getPaymentMethod())) {
