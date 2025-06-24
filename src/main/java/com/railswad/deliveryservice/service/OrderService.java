@@ -371,6 +371,93 @@ public class OrderService {
         }
     }
 
+
+    @Transactional
+    @CacheEvict(value = "orders", key = "#orderId")
+    public OrderDTO adminUpdateOrderStatus(Long orderId, OrderStatus status, String remarks, Long adminId) {
+        long startTime = System.currentTimeMillis();
+        logger.info("Admin updating order status for order ID: {} to {}, updated by admin ID: {}", orderId, status, adminId);
+        try {
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
+            User admin = userRepository.findById(adminId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Admin not found with id: " + adminId));
+
+            // Validate admin role (assuming User entity has a role field)
+//            if (!"ADMIN".equals(admin.getRole())) {
+//                logger.warn("User ID: {} is not an admin, cannot update order status", adminId);
+//                throw new IllegalArgumentException("Only admins can update order status");
+//            }
+
+            order.setOrderStatus(status);
+            order.setUpdatedAt(ZonedDateTime.now());
+            Order updatedOrder = orderRepository.save(order);
+            logger.debug("Admin updated order ID: {} with status: {}", orderId, status);
+
+            updateOrderTracking(updatedOrder, status, "Admin updated status: " + remarks, admin);
+
+            OrderDTO orderDTO = convertToOrderDTO(updatedOrder);
+            logger.info("Admin successfully updated order status for order ID: {}, took {}ms",
+                    orderId, System.currentTimeMillis() - startTime);
+            return orderDTO;
+        } catch (Exception e) {
+            logger.error("Admin failed to update order status for order ID: {}, error: {}", orderId, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @Transactional
+    @CacheEvict(value = "orders", key = "#orderId")
+    public OrderDTO adminUpdateCodPaymentStatus(Long orderId, PaymentStatus paymentStatus, String remarks, Long adminId) {
+        long startTime = System.currentTimeMillis();
+        logger.info("Admin updating COD payment status for order ID: {} to {}, updated by admin ID: {}", orderId, paymentStatus, adminId);
+        try {
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
+            User admin = userRepository.findById(adminId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Admin not found with id: " + adminId));
+
+            // Validate admin role
+            if (!"ADMIN".equals(admin.getUserRoles())) {
+                logger.warn("User ID: {} is not an admin, cannot update payment status", adminId);
+                throw new IllegalArgumentException("Only admins can update payment status");
+            }
+
+            // Validate that order is COD
+            if (!"COD".equals(order.getPaymentMethod())) {
+                logger.warn("Attempted COD payment status update for non-COD order ID: {}", orderId);
+                throw new IllegalArgumentException("Order is not a COD order");
+            }
+
+            // Prevent redundant status update
+            if (order.getPaymentStatus() == paymentStatus) {
+                logger.warn("Payment status {} already set for order ID: {}", paymentStatus, orderId);
+                throw new IllegalArgumentException("Payment status is already " + paymentStatus);
+            }
+
+            order.setPaymentStatus(paymentStatus);
+            order.setUpdatedAt(ZonedDateTime.now());
+            Order updatedOrder = orderRepository.save(order);
+            logger.debug("Admin updated payment status for order ID: {} to {}", orderId, paymentStatus);
+
+            // Generate invoice if payment is completed
+            if (paymentStatus == PaymentStatus.COMPLETED) {
+                paymentService.generateAndSaveInvoice(updatedOrder, "COD_" + orderId);
+                logger.debug("Generated invoice for order ID: {}", orderId);
+            }
+
+            updateOrderTracking(updatedOrder, updatedOrder.getOrderStatus(), "Admin updated COD payment status: " + remarks, admin);
+
+            OrderDTO orderDTO = convertToOrderDTO(updatedOrder);
+            logger.info("Admin successfully updated COD payment status for order ID: {}, took {}ms",
+                    orderId, System.currentTimeMillis() - startTime);
+            return orderDTO;
+        } catch (Exception e) {
+            logger.error("Admin failed to update COD payment status for order ID: {}, error: {}", orderId, e.getMessage(), e);
+            throw e;
+        }
+    }
+
     private OrderDTO convertToOrderDTO(Order order) {
         OrderDTO orderDTO = new OrderDTO();
         orderDTO.setOrderId(order.getOrderId());

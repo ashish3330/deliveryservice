@@ -1,8 +1,15 @@
 package com.railswad.deliveryservice.controller;
 
 import com.railswad.deliveryservice.dto.OrderDTO;
+import com.railswad.deliveryservice.dto.UpdateOrderStatusRequest;
+import com.railswad.deliveryservice.dto.UpdateCodPaymentStatusRequest;
 import com.railswad.deliveryservice.entity.OrderStatus;
+import com.railswad.deliveryservice.entity.PaymentStatus;
+import com.railswad.deliveryservice.exception.ResourceNotFoundException;
 import com.railswad.deliveryservice.service.OrderService;
+import com.railswad.deliveryservice.util.JwtUtil;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,13 +18,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.ZonedDateTime;
-import java.util.Arrays;
 import java.util.List;
 
 @RestController
@@ -28,6 +34,9 @@ public class OrderAdminController {
 
     @Autowired
     private OrderService orderService;
+
+    @Autowired
+    private JwtUtil jwtUtil; // Assumed JWT utility class for token processing
 
     @GetMapping("/active")
     @PreAuthorize("hasRole('ADMIN')")
@@ -66,6 +75,73 @@ public class OrderAdminController {
         } catch (Exception e) {
             logger.error("Failed to fetch historical orders: {}", e.getMessage(), e);
             throw e;
+        }
+    }
+
+    @PutMapping("/{orderId}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<OrderDTO> updateOrderStatus(
+            @PathVariable Long orderId,
+            @Valid @RequestBody UpdateOrderStatusRequest request) {
+        logger.info("Received request to update order status for order ID: {}", orderId);
+        try {
+            Long adminId = getAuthenticatedUserId();
+            OrderDTO updatedOrder = orderService.adminUpdateOrderStatus(
+                    orderId,
+                    request.getStatus(),
+                    request.getRemarks(),
+                    adminId
+            );
+            logger.info("Successfully updated order status for order ID: {}", orderId);
+            return ResponseEntity.ok(updatedOrder);
+        } catch (Exception e) {
+            logger.error("Failed to update order status for order ID: {}, error: {}", orderId, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @PutMapping("/{orderId}/cod-payment-status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<OrderDTO> updateCodPaymentStatus(
+            @PathVariable Long orderId,
+            @Valid @RequestBody UpdateCodPaymentStatusRequest request) {
+        logger.info("Received request to update COD payment status for order ID: {}", orderId);
+        try {
+            Long adminId = getAuthenticatedUserId();
+            OrderDTO updatedOrder = orderService.adminUpdateCodPaymentStatus(
+                    orderId,
+                    request.getPaymentStatus(),
+                    request.getRemarks(),
+                    adminId
+            );
+            logger.info("Successfully updated COD payment status for order ID: {}", orderId);
+            return ResponseEntity.ok(updatedOrder);
+        } catch (Exception e) {
+            logger.error("Failed to update COD payment status for order ID: {}, error: {}", orderId, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    private Long getAuthenticatedUserId() {
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attributes == null) {
+            logger.error("No request context available");
+            throw new ResourceNotFoundException("No request context available");
+        }
+
+        HttpServletRequest request = attributes.getRequest();
+        String authHeader = request.getHeader("Authorization");
+        if (!StringUtils.hasText(authHeader) || !authHeader.startsWith("Bearer ")) {
+            logger.error("No valid JWT token found in request");
+            throw new ResourceNotFoundException("No valid JWT token found");
+        }
+
+        String token = authHeader.substring(7);
+        try {
+            return jwtUtil.extractUserId(token);
+        } catch (Exception e) {
+            logger.error("Failed to extract userId from JWT: {}", e.getMessage());
+            throw new ResourceNotFoundException("Invalid JWT token");
         }
     }
 }
