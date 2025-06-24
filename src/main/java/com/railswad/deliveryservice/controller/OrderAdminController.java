@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.StringUtils;
@@ -23,8 +22,12 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.TimeZone;
 
 @RestController
 @RequestMapping("/api/admin/orders")
@@ -38,18 +41,26 @@ public class OrderAdminController {
     @Autowired
     private JwtUtil jwtUtil; // Assumed JWT utility class for token processing
 
+    private static final DateTimeFormatter FRONTEND_DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
+    private static final DateTimeFormatter ISO_DATE_TIME_WITH_IST =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX")
+                    .withZone(java.time.ZoneId.of("Asia/Kolkata"));
+
     @GetMapping("/active")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<OrderDTO>> getActiveOrders(
             @RequestParam(required = false) Long vendorId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime endDate,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
             @RequestParam(required = false) List<OrderStatus> statuses,
             Pageable pageable) {
         logger.info("Fetching active orders with filters: vendorId={}, startDate={}, endDate={}, statuses={}, pageable: page={}, size={}, sort={}",
                 vendorId, startDate, endDate, statuses, pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
         try {
-            Page<OrderDTO> orders = orderService.getActiveOrdersForAdmin(vendorId, startDate, endDate, statuses, pageable);
+            ZonedDateTime parsedStartDate = parseToIstZonedDateTime(startDate);
+            ZonedDateTime parsedEndDate = parseToIstZonedDateTime(endDate);
+            Page<OrderDTO> orders = orderService.getActiveOrdersForAdmin(vendorId, parsedStartDate, parsedEndDate, statuses, pageable);
             logger.info("Successfully fetched {} active orders", orders.getTotalElements());
             return ResponseEntity.ok(orders);
         } catch (Exception e) {
@@ -62,14 +73,16 @@ public class OrderAdminController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<OrderDTO>> getHistoricalOrders(
             @RequestParam(required = false) Long vendorId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime endDate,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
             @RequestParam(required = false) List<OrderStatus> statuses,
             Pageable pageable) {
         logger.info("Fetching historical orders with filters: vendorId={}, startDate={}, endDate={}, statuses={}, pageable: page={}, size={}, sort={}",
                 vendorId, startDate, endDate, statuses, pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
         try {
-            Page<OrderDTO> orders = orderService.getHistoricalOrdersForAdmin(vendorId, startDate, endDate, statuses, pageable);
+            ZonedDateTime parsedStartDate = parseToIstZonedDateTime(startDate);
+            ZonedDateTime parsedEndDate = parseToIstZonedDateTime(endDate);
+            Page<OrderDTO> orders = orderService.getHistoricalOrdersForAdmin(vendorId, parsedStartDate, parsedEndDate, statuses, pageable);
             logger.info("Successfully fetched {} historical orders", orders.getTotalElements());
             return ResponseEntity.ok(orders);
         } catch (Exception e) {
@@ -119,6 +132,20 @@ public class OrderAdminController {
         } catch (Exception e) {
             logger.error("Failed to update COD payment status for order ID: {}, error: {}", orderId, e.getMessage(), e);
             throw e;
+        }
+    }
+
+    private ZonedDateTime parseToIstZonedDateTime(String dateString) {
+        if (!StringUtils.hasText(dateString)) {
+            return null;
+        }
+        try {
+            // Append seconds and IST timezone (UTC+05:30)
+            String formattedDate = dateString + ":00+05:30";
+            return ZonedDateTime.parse(formattedDate, ISO_DATE_TIME_WITH_IST);
+        } catch (DateTimeParseException e) {
+            logger.error("Failed to parse date string {} to IST ZonedDateTime: {}", dateString, e.getMessage());
+            throw new IllegalArgumentException("Invalid date format: " + dateString, e);
         }
     }
 
