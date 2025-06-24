@@ -410,4 +410,67 @@ public class OrderService {
 
         return orderDTO;
     }
+
+    public Page<OrderDTO> getActiveOrdersForAdmin(Long vendorId, ZonedDateTime startDate, ZonedDateTime endDate,
+                                                  List<OrderStatus> statuses, Pageable pageable) {
+        logger.info("Fetching active orders for admin with filters: vendorId={}, startDate={}, endDate={}, statuses={}",
+                vendorId, startDate, endDate, statuses);
+        try {
+            Specification<Order> spec = createOrderSpecification(vendorId, startDate, endDate, statuses, true);
+            Page<OrderDTO> orders = orderRepository.findAll(spec, pageable).map(this::convertToOrderDTO);
+            logger.info("Successfully fetched {} active orders", orders.getTotalElements());
+            return orders;
+        } catch (Exception e) {
+            logger.error("Failed to fetch active orders: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    public Page<OrderDTO> getHistoricalOrdersForAdmin(Long vendorId, ZonedDateTime startDate, ZonedDateTime endDate,
+                                                      List<OrderStatus> statuses, Pageable pageable) {
+        logger.info("Fetching historical orders for admin with filters: vendorId={}, startDate={}, endDate={}, statuses={}",
+                vendorId, startDate, endDate, statuses);
+        try {
+            Specification<Order> spec = createOrderSpecification(vendorId, startDate, endDate, statuses, false);
+            Page<OrderDTO> orders = orderRepository.findAll(spec, pageable).map(this::convertToOrderDTO);
+            logger.info("Successfully fetched {} historical orders", orders.getTotalElements());
+            return orders;
+        } catch (Exception e) {
+            logger.error("Failed to fetch historical orders: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    private Specification<Order> createOrderSpecification(Long vendorId, ZonedDateTime startDate, ZonedDateTime endDate,
+                                                          List<OrderStatus> statuses, boolean isActive) {
+        return (root, query, cb) -> {
+            Specification<Order> spec = Specification.where(null);
+
+            // Filter by vendorId if provided
+            if (vendorId != null) {
+                spec = spec.and((r, q, c) -> c.equal(r.get("vendor").get("vendorId"), vendorId));
+            }
+
+            // Filter by date range if provided
+            if (startDate != null) {
+                spec = spec.and((r, q, c) -> c.greaterThanOrEqualTo(r.get("createdAt"), startDate));
+            }
+            if (endDate != null) {
+                spec = spec.and((r, q, c) -> c.lessThanOrEqualTo(r.get("createdAt"), endDate));
+            }
+
+            // Filter by status: active (not DELIVERED or CANCELLED) or historical (DELIVERED or CANCELLED)
+            if (statuses != null && !statuses.isEmpty()) {
+                spec = spec.and((r, q, c) -> r.get("orderStatus").in(statuses));
+            } else {
+                // Default status filter based on isActive flag
+                List<OrderStatus> defaultStatuses = isActive
+                        ? Arrays.asList(OrderStatus.PLACED, OrderStatus.PREPARING, OrderStatus.DISPATCHED)
+                        : Arrays.asList(OrderStatus.DELIVERED, OrderStatus.CANCELLED);
+                spec = spec.and((r, q, c) -> r.get("orderStatus").in(defaultStatuses));
+            }
+
+            return spec.toPredicate(root, query, cb);
+        };
+    }
 }
