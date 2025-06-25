@@ -2,6 +2,8 @@ package com.railswad.deliveryservice.repository;
 
 import com.railswad.deliveryservice.dto.*;
 import com.railswad.deliveryservice.entity.Order;
+import com.railswad.deliveryservice.entity.OrderStatus;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -100,4 +102,15 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
 
     @Query("SELECT o FROM Order o WHERE o.orderId = :orderId AND ( o.customer.userId = :userId)")
     Optional<Order> findByOrderIdAndUserUserId(@Param("orderId") Long orderId, @Param("userId") Long userId);
+
+
+    @Query("SELECT o FROM Order o WHERE (:vendorId IS NULL OR o.vendor.vendorId = :vendorId) " +
+            "AND (:startDate IS NULL OR o.createdAt >= :startDate) " +
+            "AND (:endDate IS NULL OR o.createdAt <= :endDate) " +
+            "AND (:statuses IS NULL OR o.orderStatus IN :statuses)")
+    Page<Order> findHistoricalOrders(@Param("vendorId") Long vendorId,
+                                     @Param("startDate") ZonedDateTime startDate,
+                                     @Param("endDate") ZonedDateTime endDate,
+                                     @Param("statuses") List<OrderStatus> statuses,
+                                     Pageable pageable);
 }

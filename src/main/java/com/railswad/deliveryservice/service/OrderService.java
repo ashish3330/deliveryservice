@@ -560,4 +560,31 @@ public class OrderService {
             return spec.toPredicate(root, query, cb);
         };
     }
+
+    public List<OrderExcelDTO> getOrdersForExcelExport(Long vendorId, ZonedDateTime startDate, ZonedDateTime endDate,
+                                                       Long stationId) {
+        logger.info("Fetching orders for Excel export with filters: vendorId={}, startDate={}, endDate={}, stationId={}",
+                vendorId, startDate, endDate, stationId);
+        Pageable pageable = Pageable.unpaged();
+        Page<Order> ordersPage = orderRepository.findHistoricalOrders(vendorId, startDate, endDate, null, pageable);
+        List<Order> orders = ordersPage.getContent();
+
+        return orders.stream()
+                .filter(order -> stationId == null || stationId.equals(order.getDeliveryStation().getStationId().longValue()))
+                .map(this::convertToExcelDTO)
+                .collect(Collectors.toList());
+    }
+
+    private OrderExcelDTO convertToExcelDTO(Order order) {
+        OrderExcelDTO dto = new OrderExcelDTO();
+        dto.setOrderId(order.getOrderId());
+        dto.setStationName(order.getDeliveryStation().getStationName());
+        dto.setVendorName(order.getVendor() != null ? order.getVendor().getBusinessName() : "");
+        dto.setNumberOfItems(order.getOrderItems() != null ? order.getOrderItems().size() : 0);
+        dto.setTotalAmount(order.getTotalAmount());
+        dto.setFinalAmount(order.getFinalAmount());
+        dto.setTaxAmount(order.getTaxAmount() != null ? order.getTaxAmount() : 0.0);
+        dto.setGstNumber(order.getVendor() != null ? order.getVendor().getGstNumber() : "");
+        return dto;
+    }
 }

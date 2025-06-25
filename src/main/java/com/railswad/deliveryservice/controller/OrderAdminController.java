@@ -1,15 +1,19 @@
 package com.railswad.deliveryservice.controller;
 
 import com.railswad.deliveryservice.dto.OrderDTO;
+import com.railswad.deliveryservice.dto.OrderExcelDTO;
 import com.railswad.deliveryservice.dto.UpdateOrderStatusRequest;
 import com.railswad.deliveryservice.dto.UpdateCodPaymentStatusRequest;
 import com.railswad.deliveryservice.entity.OrderStatus;
 import com.railswad.deliveryservice.entity.PaymentStatus;
 import com.railswad.deliveryservice.exception.ResourceNotFoundException;
 import com.railswad.deliveryservice.service.OrderService;
+import com.railswad.deliveryservice.util.ExcelHelper;
 import com.railswad.deliveryservice.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,18 +26,21 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-
+import java.io.IOException;
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.ZoneId;
 import java.util.List;
-import java.util.TimeZone;
 
 @RestController
 @RequestMapping("/api/admin/orders")
 public class OrderAdminController {
 
     private static final Logger logger = LoggerFactory.getLogger(OrderAdminController.class);
+    @Autowired
+    private   ExcelHelper excelHelper;
 
     @Autowired
     private OrderService orderService;
@@ -41,11 +48,11 @@ public class OrderAdminController {
     @Autowired
     private JwtUtil jwtUtil; // Assumed JWT utility class for token processing
 
-    private static final DateTimeFormatter FRONTEND_DATE_FORMATTER =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
-    private static final DateTimeFormatter ISO_DATE_TIME_WITH_IST =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX")
-                    .withZone(java.time.ZoneId.of("Asia/Kolkata"));
+    private static final DateTimeFormatter DATE_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm[:ss]");
+    private static final DateTimeFormatter DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final ZoneId IST_ZONE = ZoneId.of("Asia/Kolkata");
 
     @GetMapping("/active")
     @PreAuthorize("hasRole('ADMIN')")
@@ -58,8 +65,8 @@ public class OrderAdminController {
         logger.info("Fetching active orders with filters: vendorId={}, startDate={}, endDate={}, statuses={}, pageable: page={}, size={}, sort={}",
                 vendorId, startDate, endDate, statuses, pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
         try {
-            ZonedDateTime parsedStartDate = parseToIstZonedDateTime(startDate);
-            ZonedDateTime parsedEndDate = parseToIstZonedDateTime(endDate);
+            ZonedDateTime parsedStartDate = parseToIstZonedDateTime(startDate, true);
+            ZonedDateTime parsedEndDate = parseToIstZonedDateTime(endDate, false);
             Page<OrderDTO> orders = orderService.getActiveOrdersForAdmin(vendorId, parsedStartDate, parsedEndDate, statuses, pageable);
             logger.info("Successfully fetched {} active orders", orders.getTotalElements());
             return ResponseEntity.ok(orders);
@@ -80,8 +87,8 @@ public class OrderAdminController {
         logger.info("Fetching historical orders with filters: vendorId={}, startDate={}, endDate={}, statuses={}, pageable: page={}, size={}, sort={}",
                 vendorId, startDate, endDate, statuses, pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
         try {
-            ZonedDateTime parsedStartDate = parseToIstZonedDateTime(startDate);
-            ZonedDateTime parsedEndDate = parseToIstZonedDateTime(endDate);
+            ZonedDateTime parsedStartDate = parseToIstZonedDateTime(startDate, true);
+            ZonedDateTime parsedEndDate = parseToIstZonedDateTime(endDate, false);
             Page<OrderDTO> orders = orderService.getHistoricalOrdersForAdmin(vendorId, parsedStartDate, parsedEndDate, statuses, pageable);
             logger.info("Successfully fetched {} historical orders", orders.getTotalElements());
             return ResponseEntity.ok(orders);
@@ -135,14 +142,67 @@ public class OrderAdminController {
         }
     }
 
-    private ZonedDateTime parseToIstZonedDateTime(String dateString) {
+
+    @GetMapping("/export-excel")
+    @PreAuthorize("hasRole('ADMIN')")
+    public void exportOrdersToExcel(
+            @RequestParam(required = false) Long vendorId,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) Long stationId,
+            HttpServletResponse response) {
+        logger.info("Exporting orders to Excel with filters: vendorId={}, startDate={}, endDate={}, stationId={}",
+                vendorId, startDate, endDate, stationId);
+        try {
+            ZonedDateTime parsedStartDate = parseToIstZonedDateTime(startDate, true);
+            ZonedDateTime parsedEndDate = parseToIstZonedDateTime(endDate, false);
+
+            // Fetch orders for export
+            List<OrderExcelDTO> orders = orderService.getOrdersForExcelExport(vendorId, parsedStartDate, parsedEndDate, stationId);
+
+            // Generate Excel
+            Workbook workbook = excelHelper.generateOrdersExcel(orders);
+
+            // Set response headers
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setHeader("Content-Disposition", "attachment; filename=orders_export.xlsx");
+
+            // Write to response
+            workbook.write(response.getOutputStream());
+            workbook.close();
+            logger.info("Successfully exported {} orders to Excel", orders.size());
+        } catch (IOException e) {
+            logger.error("Failed to export orders to Excel: {}", e.getMessage(), e);
+            throw new RuntimeException("Error generating Excel file", e);
+        } catch (Exception e) {
+            logger.error("Failed to process orders for Excel export: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    private ZonedDateTime parseToIstZonedDateTime(String dateString, boolean isStartDate) {
         if (!StringUtils.hasText(dateString)) {
             return null;
         }
         try {
-            // Append seconds and IST timezone (UTC+05:30)
-            String formattedDate = dateString + ":00+05:30";
-            return ZonedDateTime.parse(formattedDate, ISO_DATE_TIME_WITH_IST);
+            // Extract the date part by parsing the input string and taking only yyyy-MM-dd
+            LocalDate localDate;
+            if (dateString.matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?")) {
+                // Parse the full datetime string and extract the date part
+                localDate = LocalDate.parse(dateString.split("T")[0], DATE_FORMATTER);
+            } else {
+                // Try parsing directly as a date
+                localDate = LocalDate.parse(dateString, DATE_FORMATTER);
+            }
+
+            // Convert to ZonedDateTime in IST with default time
+            if (isStartDate) {
+                // Set start of day (00:00:00+05:30)
+                return localDate.atStartOfDay(IST_ZONE);
+            } else {
+                // Set end of day (23:59:59+05:30)
+                return localDate.atTime(23, 59, 59).atZone(IST_ZONE);
+            }
         } catch (DateTimeParseException e) {
             logger.error("Failed to parse date string {} to IST ZonedDateTime: {}", dateString, e.getMessage());
             throw new IllegalArgumentException("Invalid date format: " + dateString, e);
