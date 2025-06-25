@@ -105,12 +105,13 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
 
 
     @Query("SELECT o FROM Order o WHERE (:vendorId IS NULL OR o.vendor.vendorId = :vendorId) " +
-            "AND (:startDate IS NULL OR o.createdAt >= :startDate) " +
-            "AND (:endDate IS NULL OR o.createdAt <= :endDate) " +
+            "AND (COALESCE(:startDate, o.createdAt) = o.createdAt OR o.createdAt >= :startDate) " +
+            "AND (COALESCE(:endDate, o.createdAt) = o.createdAt OR o.createdAt <= :endDate) " +
             "AND (:statuses IS NULL OR o.orderStatus IN :statuses)")
-    Page<Order> findHistoricalOrders(@Param("vendorId") Long vendorId,
-                                     @Param("startDate") ZonedDateTime startDate,
-                                     @Param("endDate") ZonedDateTime endDate,
-                                     @Param("statuses") List<OrderStatus> statuses,
-                                     Pageable pageable);
+    Page<Order> findHistoricalOrders(
+            @Param("vendorId") Long vendorId,
+            @Param("startDate") ZonedDateTime startDate,
+            @Param("endDate") ZonedDateTime endDate,
+            @Param("statuses") List<OrderStatus> statuses,
+            Pageable pageable);
 }
