@@ -220,9 +220,10 @@ public class ExcelHelper {
             row.createCell(7).setCellValue(order.getGstNumber() != null ? order.getGstNumber() : "");
         }
 
-        // Auto-size columns
+        // Set fixed column widths
+        int[] columnWidths = {5000, 8000, 8000, 4000, 4000, 4000, 4000, 6000}; // Widths in 1/256th of a character
         for (int i = 0; i < headers.length; i++) {
-            sheet.autoSizeColumn(i);
+            sheet.setColumnWidth(i, columnWidths[i]);
         }
 
         logger.info("Excel generation completed with {} rows", rowNum - 1);
