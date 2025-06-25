@@ -578,13 +578,15 @@ public class OrderService {
     private OrderExcelDTO convertToExcelDTO(Order order) {
         OrderExcelDTO dto = new OrderExcelDTO();
         dto.setOrderId(order.getOrderId());
-        dto.setStationName(order.getDeliveryStation().getStationName());
-        dto.setVendorName(order.getVendor() != null ? order.getVendor().getBusinessName() : "");
+        dto.setStationName(order.getDeliveryStation() != null ? order.getDeliveryStation().getStationName() : null);
+        dto.setVendorName(order.getVendor() != null ? order.getVendor().getBusinessName() : null);
         dto.setNumberOfItems(order.getOrderItems() != null ? order.getOrderItems().size() : 0);
         dto.setTotalAmount(order.getTotalAmount());
         dto.setFinalAmount(order.getFinalAmount());
-        dto.setTaxAmount(order.getTaxAmount() != null ? order.getTaxAmount() : 0.0);
-        dto.setGstNumber(order.getVendor() != null ? order.getVendor().getGstNumber() : "");
+        dto.setTaxAmount(order.getTaxAmount());
+        dto.setGstNumber(order.getVendor() != null ? order.getVendor().getGstNumber() : null);
+        dto.setOrderDate(order.getCreatedAt());
+        dto.setPaymentMethod(order.getPaymentMethod());
         return dto;
     }
 }
