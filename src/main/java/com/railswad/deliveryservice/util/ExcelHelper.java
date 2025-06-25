@@ -1,8 +1,10 @@
 package com.railswad.deliveryservice.util;
 
 import com.railswad.deliveryservice.dto.MenuItemDTO;
+import com.railswad.deliveryservice.dto.OrderExcelDTO;
 import com.railswad.deliveryservice.dto.StationDTO;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -169,6 +171,62 @@ public class ExcelHelper {
                 }
             }
         }
+    }
+
+    public Workbook generateOrdersExcel(List<OrderExcelDTO> orders) {
+        logger.info("Generating Excel for {} orders", orders.size());
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("Orders");
+
+        // Create header row
+        Row headerRow = sheet.createRow(0);
+        String[] headers = {"Order ID", "Station Name", "Vendor Name", "Number of Items", "Total Amount", "Final Amount", "Tax Amount", "GST Number"};
+        CellStyle headerStyle = workbook.createCellStyle();
+        Font headerFont = workbook.createFont();
+        headerFont.setBold(true);
+        headerStyle.setFont(headerFont);
+        headerStyle.setAlignment(HorizontalAlignment.CENTER);
+
+        for (int i = 0; i < headers.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(headers[i]);
+            cell.setCellStyle(headerStyle);
+        }
+
+        // Create data rows
+        CellStyle currencyStyle = workbook.createCellStyle();
+        currencyStyle.setDataFormat(workbook.createDataFormat().getFormat("₹#,##0.00"));
+
+        int rowNum = 1;
+        for (OrderExcelDTO order : orders) {
+            Row row = sheet.createRow(rowNum++);
+            row.createCell(0).setCellValue(order.getOrderId());
+            row.createCell(1).setCellValue(order.getStationName() != null ? order.getStationName() : "");
+            row.createCell(2).setCellValue(order.getVendorName() != null ? order.getVendorName() : "");
+            row.createCell(3).setCellValue(order.getNumberOfItems() != null ? order.getNumberOfItems() : 0);
+
+            Cell totalAmountCell = row.createCell(4);
+            totalAmountCell.setCellValue(order.getTotalAmount() != null ? order.getTotalAmount() : 0.0);
+            totalAmountCell.setCellStyle(currencyStyle);
+
+            Cell finalAmountCell = row.createCell(5);
+            finalAmountCell.setCellValue(order.getFinalAmount() != null ? order.getFinalAmount() : 0.0);
+            finalAmountCell.setCellStyle(currencyStyle);
+
+            Cell taxAmountCell = row.createCell(6);
+            taxAmountCell.setCellValue(order.getTaxAmount() != null ? order.getTaxAmount() : 0.0);
+            taxAmountCell.setCellStyle(currencyStyle);
+
+            row.createCell(7).setCellValue(order.getGstNumber() != null ? order.getGstNumber() : "");
+        }
+
+        // Auto-size columns
+        for (int i = 0; i < headers.length; i++) {
+            sheet.autoSizeColumn(i);
+        }
+
+        logger.info("Excel generation completed with {} rows", rowNum - 1);
+        return workbook;
     }
 
     private String getValue(DataFormatter formatter, Row row, Map<String, Integer> headerMap, String key) {
