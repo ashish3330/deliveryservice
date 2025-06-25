@@ -1,6 +1,7 @@
 package com.railswad.deliveryservice.dto;
 
 import lombok.Data;
+import java.time.ZonedDateTime;
 
 @Data
 public class OrderExcelDTO {
@@ -12,4 +13,6 @@ public class OrderExcelDTO {
     private Double finalAmount;
     private Double taxAmount;
     private String gstNumber;
+    private ZonedDateTime orderDate;
+    private String paymentMethod;
 }

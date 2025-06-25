@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Component
@@ -21,6 +22,8 @@ public class ExcelHelper {
 
     private static final Logger logger = LoggerFactory.getLogger(ExcelHelper.class);
     public static final String TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
 
     public boolean hasExcelFormat(MultipartFile file) {
         boolean isExcel = TYPE.equals(file.getContentType());
@@ -173,6 +176,7 @@ public class ExcelHelper {
         }
     }
 
+
     public Workbook generateOrdersExcel(List<OrderExcelDTO> orders) {
         logger.info("Generating Excel for {} orders", orders.size());
         Workbook workbook = new XSSFWorkbook();
@@ -180,7 +184,7 @@ public class ExcelHelper {
 
         // Create header row
         Row headerRow = sheet.createRow(0);
-        String[] headers = {"Order ID", "Station Name", "Vendor Name", "Number of Items", "Total Amount", "Final Amount", "Tax Amount", "GST Number"};
+        String[] headers = {"Order ID", "Station Name", "Vendor Name", "Number of Items", "Total Amount", "Final Amount", "Tax Amount", "GST Number", "Order Date", "Order Payment Type"};
         CellStyle headerStyle = workbook.createCellStyle();
         Font headerFont = workbook.createFont();
         headerFont.setBold(true);
@@ -218,10 +222,16 @@ public class ExcelHelper {
             taxAmountCell.setCellStyle(currencyStyle);
 
             row.createCell(7).setCellValue(order.getGstNumber() != null ? order.getGstNumber() : "");
+
+            // Format Order Date as string in IST
+            Cell orderDateCell = row.createCell(8);
+            orderDateCell.setCellValue(order.getOrderDate() != null ? order.getOrderDate().format(DATE_TIME_FORMATTER) : "");
+
+            row.createCell(9).setCellValue(order.getPaymentMethod() != null ? order.getPaymentMethod() : "");
         }
 
         // Set fixed column widths
-        int[] columnWidths = {5000, 8000, 8000, 4000, 4000, 4000, 4000, 6000}; // Widths in 1/256th of a character
+        int[] columnWidths = {5000, 8000, 8000, 4000, 4000, 4000, 4000, 6000, 6000, 5000}; // Widths in 1/256th of a character
         for (int i = 0; i < headers.length; i++) {
             sheet.setColumnWidth(i, columnWidths[i]);
         }
