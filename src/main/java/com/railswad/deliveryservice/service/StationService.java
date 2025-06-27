@@ -179,7 +179,7 @@
 
         public boolean hasDependencies(Integer stationId) {
             long vendorCount = vendorRepository.countByStationStationId(stationId);
-            long orderCount = orderRepository.countByDeliveryStationStationId(stationId);
+            long orderCount = orderRepository.countByDeliveryStationStationId(Long.parseLong(stationId.toString()));
             return vendorCount > 0 || orderCount > 0;
         }
 

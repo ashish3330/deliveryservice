@@ -8,6 +8,7 @@ import com.railswad.deliveryservice.entity.OrderStatus;
 import com.railswad.deliveryservice.entity.PaymentStatus;
 import com.railswad.deliveryservice.exception.ResourceNotFoundException;
 import com.railswad.deliveryservice.service.OrderService;
+import com.railswad.deliveryservice.util.DateUtils;
 import com.railswad.deliveryservice.util.ExcelHelper;
 import com.railswad.deliveryservice.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -42,6 +43,8 @@ public class OrderAdminController {
     @Autowired
     private   ExcelHelper excelHelper;
 
+
+
     @Autowired
     private OrderService orderService;
 
@@ -65,8 +68,8 @@ public class OrderAdminController {
         logger.info("Fetching active orders with filters: vendorId={}, startDate={}, endDate={}, statuses={}, pageable: page={}, size={}, sort={}",
                 vendorId, startDate, endDate, statuses, pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
         try {
-            ZonedDateTime parsedStartDate = parseToIstZonedDateTime(startDate, true);
-            ZonedDateTime parsedEndDate = parseToIstZonedDateTime(endDate, false);
+            ZonedDateTime parsedStartDate = DateUtils.parseToIstZonedDateTime(startDate, true);
+            ZonedDateTime parsedEndDate = DateUtils.parseToIstZonedDateTime(endDate, false);
             Page<OrderDTO> orders = orderService.getActiveOrdersForAdmin(vendorId, parsedStartDate, parsedEndDate, statuses, pageable);
             logger.info("Successfully fetched {} active orders", orders.getTotalElements());
             return ResponseEntity.ok(orders);
@@ -87,8 +90,8 @@ public class OrderAdminController {
         logger.info("Fetching historical orders with filters: vendorId={}, startDate={}, endDate={}, statuses={}, pageable: page={}, size={}, sort={}",
                 vendorId, startDate, endDate, statuses, pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
         try {
-            ZonedDateTime parsedStartDate = parseToIstZonedDateTime(startDate, true);
-            ZonedDateTime parsedEndDate = parseToIstZonedDateTime(endDate, false);
+            ZonedDateTime parsedStartDate = DateUtils.parseToIstZonedDateTime(startDate, true);
+            ZonedDateTime parsedEndDate = DateUtils.parseToIstZonedDateTime(endDate, false);
             Page<OrderDTO> orders = orderService.getHistoricalOrdersForAdmin(vendorId, parsedStartDate, parsedEndDate, statuses, pageable);
             logger.info("Successfully fetched {} historical orders", orders.getTotalElements());
             return ResponseEntity.ok(orders);
@@ -154,8 +157,8 @@ public class OrderAdminController {
         logger.info("Exporting orders to Excel with filters: vendorId={}, startDate={}, endDate={}, stationId={}",
                 vendorId, startDate, endDate, stationId);
         try {
-            ZonedDateTime parsedStartDate = parseToIstZonedDateTime(startDate, true);
-            ZonedDateTime parsedEndDate = parseToIstZonedDateTime(endDate, false);
+            ZonedDateTime parsedStartDate = DateUtils.parseToIstZonedDateTime(startDate, true);
+            ZonedDateTime parsedEndDate = DateUtils.parseToIstZonedDateTime(endDate, false);
 
             // Fetch orders for export
             List<OrderExcelDTO> orders = orderService.getOrdersForExcelExport(vendorId, parsedStartDate, parsedEndDate, stationId);
@@ -180,34 +183,7 @@ public class OrderAdminController {
         }
     }
 
-    private ZonedDateTime parseToIstZonedDateTime(String dateString, boolean isStartDate) {
-        if (!StringUtils.hasText(dateString)) {
-            return null;
-        }
-        try {
-            // Extract the date part by parsing the input string and taking only yyyy-MM-dd
-            LocalDate localDate;
-            if (dateString.matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?")) {
-                // Parse the full datetime string and extract the date part
-                localDate = LocalDate.parse(dateString.split("T")[0], DATE_FORMATTER);
-            } else {
-                // Try parsing directly as a date
-                localDate = LocalDate.parse(dateString, DATE_FORMATTER);
-            }
 
-            // Convert to ZonedDateTime in IST with default time
-            if (isStartDate) {
-                // Set start of day (00:00:00+05:30)
-                return localDate.atStartOfDay(IST_ZONE);
-            } else {
-                // Set end of day (23:59:59+05:30)
-                return localDate.atTime(23, 59, 59).atZone(IST_ZONE);
-            }
-        } catch (DateTimeParseException e) {
-            logger.error("Failed to parse date string {} to IST ZonedDateTime: {}", dateString, e.getMessage());
-            throw new IllegalArgumentException("Invalid date format: " + dateString, e);
-        }
-    }
 
     private Long getAuthenticatedUserId() {
         ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();

@@ -40,8 +40,8 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
             "COUNT(o), SUM(o.finalAmount)) " +
             "FROM Order o " +
             "WHERE o.vendor.vendorId = :vendorId " +
-            "AND (:startDate IS NULL OR o.createdAt >= :startDate) " +
-            "AND (:endDate IS NULL OR o.createdAt <= :endDate) " +
+            "AND (o.createdAt >= :startDate OR :startDate IS NULL) " +
+            "AND (o.createdAt <= :endDate OR :endDate IS NULL) " +
             "GROUP BY EXTRACT(YEAR FROM o.createdAt), EXTRACT(MONTH FROM o.createdAt) " +
             "ORDER BY EXTRACT(YEAR FROM o.createdAt), EXTRACT(MONTH FROM o.createdAt)")
     List<MonthlySalesDTO> getMonthlySalesByVendor(
@@ -51,14 +51,18 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
 
     @Query("SELECT new com.railswad.deliveryservice.dto.VendorSalesOverviewDTO(" +
             "v.vendorId, v.businessName, COUNT(o), SUM(o.finalAmount)) " +
-            "FROM Order o JOIN o.vendor v " +
-            "WHERE (:startDate IS NULL OR o.createdAt >= :startDate) " +
+            "FROM Order o JOIN o.vendor v JOIN o.deliveryStation s " +
+            "WHERE (:stationId IS NULL OR s.stationId = :stationId) " +
+            "AND (:vendorId IS NULL OR v.vendorId = :vendorId) " +
+            "AND (:startDate IS NULL OR o.createdAt >= :startDate) " +
             "AND (:endDate IS NULL OR o.createdAt <= :endDate) " +
             "GROUP BY v.vendorId, v.businessName " +
             "ORDER BY SUM(o.finalAmount) DESC")
     List<VendorSalesOverviewDTO> getAllVendorsSalesOverview(
             @Param("startDate") ZonedDateTime startDate,
-            @Param("endDate") ZonedDateTime endDate);
+            @Param("endDate") ZonedDateTime endDate,
+            @Param("stationId") Long stationId,
+            @Param("vendorId") Long vendorId);
 
     @Query("SELECT new com.railswad.deliveryservice.dto.StationSalesSummaryDTO(" +
             "s.stationId, s.stationName, COUNT(o), SUM(o.finalAmount), AVG(o.finalAmount)) " +
@@ -67,7 +71,7 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
             "AND o.createdAt >= :startDate AND o.createdAt < :endDate " +
             "GROUP BY s.stationId, s.stationName")
     StationSalesSummaryDTO getStationLastMonthSales(
-            @Param("stationId") Integer stationId,
+            @Param("stationId") Long stationId,
             @Param("startDate") ZonedDateTime startDate,
             @Param("endDate") ZonedDateTime endDate);
 
@@ -81,7 +85,7 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
             "ORDER BY " +
             "CASE WHEN :sortBy = 'orders' THEN COUNT(o) ELSE SUM(o.finalAmount) END DESC")
     List<VendorSalesOverviewDTO> getTopVendorsByStation(
-            @Param("stationId") Integer stationId,
+            @Param("stationId") Long stationId,
             @Param("startDate") ZonedDateTime startDate,
             @Param("endDate") ZonedDateTime endDate,
             @Param("sortBy") String sortBy,
@@ -97,12 +101,10 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
             @Param("startDate") ZonedDateTime startDate,
             @Param("endDate") ZonedDateTime endDate);
 
-
-    long countByDeliveryStationStationId(Integer stationId);
+    long countByDeliveryStationStationId(Long stationId);
 
     @Query("SELECT o FROM Order o WHERE o.orderId = :orderId AND ( o.customer.userId = :userId)")
     Optional<Order> findByOrderIdAndUserUserId(@Param("orderId") Long orderId, @Param("userId") Long userId);
-
 
     @Query("SELECT o FROM Order o WHERE (:vendorId IS NULL OR o.vendor.vendorId = :vendorId) " +
             "AND (COALESCE(:startDate, o.createdAt) = o.createdAt OR o.createdAt >= :startDate) " +
