@@ -75,6 +75,16 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
             @Param("startDate") ZonedDateTime startDate,
             @Param("endDate") ZonedDateTime endDate);
 
+    @Query("SELECT new com.railswad.deliveryservice.dto.StationSalesSummaryDTO(" +
+            "s.stationId, s.stationName, COUNT(o), SUM(o.finalAmount), AVG(o.finalAmount)) " +
+            "FROM Order o JOIN o.deliveryStation s " +
+            "WHERE o.createdAt >= :startDate AND o.createdAt < :endDate " +
+            "GROUP BY s.stationId, s.stationName " +
+            "ORDER BY SUM(o.finalAmount) DESC")
+    List<StationSalesSummaryDTO> getAllStationsLastMonthSales(
+            @Param("startDate") ZonedDateTime startDate,
+            @Param("endDate") ZonedDateTime endDate);
+
     @Query("SELECT new com.railswad.deliveryservice.dto.VendorSalesOverviewDTO(" +
             "v.vendorId, v.businessName, COUNT(o), SUM(o.finalAmount)) " +
             "FROM Order o JOIN o.vendor v JOIN o.deliveryStation s " +

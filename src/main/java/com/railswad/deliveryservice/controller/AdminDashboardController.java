@@ -12,11 +12,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 
@@ -149,6 +147,21 @@ public class AdminDashboardController {
             return ResponseEntity.ok(summary);
         } catch (Exception e) {
             logger.error("Failed to fetch last month sales for stationId={}: {}", stationId, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @GetMapping("/stations/sales/last-month")
+    public ResponseEntity<List<StationSalesSummaryDTO>> getAllStationsLastMonthSales() {
+        logger.info("Fetching last month sales for all stations");
+        try {
+            ZonedDateTime endDate = ZonedDateTime.now(IST_ZONE).with(TemporalAdjusters.firstDayOfMonth());
+            ZonedDateTime startDate = endDate.minusMonths(1);
+            List<StationSalesSummaryDTO> summaries = orderRepository.getAllStationsLastMonthSales(startDate, endDate);
+            logger.info("Successfully fetched last month sales for all stations");
+            return ResponseEntity.ok(summaries);
+        } catch (Exception e) {
+            logger.error("Failed to fetch last month sales for all stations: {}", e.getMessage(), e);
             throw e;
         }
     }
