@@ -18,7 +18,9 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
     @Query("SELECT new com.railswad.deliveryservice.dto.VendorSalesSummaryDTO(" +
             "v.vendorId, v.businessName, COUNT(o), SUM(o.finalAmount), AVG(o.finalAmount)) " +
             "FROM Order o JOIN o.vendor v " +
-            "WHERE v.vendorId = :vendorId AND o.createdAt >= :startDate AND o.createdAt < :endDate " +
+            "WHERE v.vendorId = :vendorId " +
+            "AND (COALESCE(:startDate, o.createdAt) = o.createdAt OR o.createdAt >= :startDate) " +
+            "AND (COALESCE(:endDate, o.createdAt) = o.createdAt OR o.createdAt < :endDate) " +
             "GROUP BY v.vendorId, v.businessName")
     VendorSalesSummaryDTO getVendorSalesSummary(
             @Param("vendorId") Long vendorId,
@@ -28,7 +30,9 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
     @Query("SELECT new com.railswad.deliveryservice.dto.VendorSalesSummaryDTO(" +
             "v.vendorId, v.businessName, COUNT(o), SUM(o.finalAmount), AVG(o.finalAmount)) " +
             "FROM Order o JOIN o.vendor v " +
-            "WHERE v.vendorId = :vendorId AND o.createdAt >= :startDate AND o.createdAt < :endDate " +
+            "WHERE v.vendorId = :vendorId " +
+            "AND (COALESCE(:startDate, o.createdAt) = o.createdAt OR o.createdAt >= :startDate) " +
+            "AND (COALESCE(:endDate, o.createdAt) = o.createdAt OR o.createdAt < :endDate) " +
             "GROUP BY v.vendorId, v.businessName")
     VendorSalesSummaryDTO getVendorLastMonthSales(
             @Param("vendorId") Long vendorId,
@@ -40,8 +44,8 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
             "COUNT(o), SUM(o.finalAmount)) " +
             "FROM Order o " +
             "WHERE o.vendor.vendorId = :vendorId " +
-            "AND (o.createdAt >= :startDate OR :startDate IS NULL) " +
-            "AND (o.createdAt <= :endDate OR :endDate IS NULL) " +
+            "AND (COALESCE(:startDate, o.createdAt) = o.createdAt OR o.createdAt >= :startDate) " +
+            "AND (COALESCE(:endDate, o.createdAt) = o.createdAt OR o.createdAt <= :endDate) " +
             "GROUP BY EXTRACT(YEAR FROM o.createdAt), EXTRACT(MONTH FROM o.createdAt) " +
             "ORDER BY EXTRACT(YEAR FROM o.createdAt), EXTRACT(MONTH FROM o.createdAt)")
     List<MonthlySalesDTO> getMonthlySalesByVendor(
@@ -54,8 +58,8 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
             "FROM Order o JOIN o.vendor v JOIN o.deliveryStation s " +
             "WHERE (:stationId IS NULL OR s.stationId = :stationId) " +
             "AND (:vendorId IS NULL OR v.vendorId = :vendorId) " +
-            "AND (:startDate IS NULL OR o.createdAt >= :startDate) " +
-            "AND (:endDate IS NULL OR o.createdAt <= :endDate) " +
+            "AND (COALESCE(:startDate, o.createdAt) = o.createdAt OR o.createdAt >= :startDate) " +
+            "AND (COALESCE(:endDate, o.createdAt) = o.createdAt OR o.createdAt <= :endDate) " +
             "GROUP BY v.vendorId, v.businessName " +
             "ORDER BY SUM(o.finalAmount) DESC")
     List<VendorSalesOverviewDTO> getAllVendorsSalesOverview(
@@ -68,7 +72,8 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
             "s.stationId, s.stationName, COUNT(o), SUM(o.finalAmount), AVG(o.finalAmount)) " +
             "FROM Order o JOIN o.deliveryStation s " +
             "WHERE s.stationId = :stationId " +
-            "AND o.createdAt >= :startDate AND o.createdAt < :endDate " +
+            "AND (COALESCE(:startDate, o.createdAt) = o.createdAt OR o.createdAt >= :startDate) " +
+            "AND (COALESCE(:endDate, o.createdAt) = o.createdAt OR o.createdAt < :endDate) " +
             "GROUP BY s.stationId, s.stationName")
     StationSalesSummaryDTO getStationLastMonthSales(
             @Param("stationId") Long stationId,
@@ -78,7 +83,8 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
     @Query("SELECT new com.railswad.deliveryservice.dto.StationSalesSummaryDTO(" +
             "s.stationId, s.stationName, COUNT(o), SUM(o.finalAmount), AVG(o.finalAmount)) " +
             "FROM Order o JOIN o.deliveryStation s " +
-            "WHERE o.createdAt >= :startDate AND o.createdAt < :endDate " +
+            "WHERE (COALESCE(:startDate, o.createdAt) = o.createdAt OR o.createdAt >= :startDate) " +
+            "AND (COALESCE(:endDate, o.createdAt) = o.createdAt OR o.createdAt < :endDate) " +
             "GROUP BY s.stationId, s.stationName " +
             "ORDER BY SUM(o.finalAmount) DESC")
     List<StationSalesSummaryDTO> getAllStationsLastMonthSales(
@@ -89,8 +95,8 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
             "v.vendorId, v.businessName, COUNT(o), SUM(o.finalAmount)) " +
             "FROM Order o JOIN o.vendor v JOIN o.deliveryStation s " +
             "WHERE s.stationId = :stationId " +
-            "AND (:startDate IS NULL OR o.createdAt >= :startDate) " +
-            "AND (:endDate IS NULL OR o.createdAt <= :endDate) " +
+            "AND (COALESCE(:startDate, o.createdAt) = o.createdAt OR o.createdAt >= :startDate) " +
+            "AND (COALESCE(:endDate, o.createdAt) = o.createdAt OR o.createdAt <= :endDate) " +
             "GROUP BY v.vendorId, v.businessName " +
             "ORDER BY " +
             "CASE WHEN :sortBy = 'orders' THEN COUNT(o) ELSE SUM(o.finalAmount) END DESC")
@@ -104,7 +110,8 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
     @Query("SELECT new com.railswad.deliveryservice.dto.StationSalesOverviewDTO(" +
             "s.stationId, s.stationName, COUNT(o), SUM(o.finalAmount)) " +
             "FROM Order o JOIN o.deliveryStation s " +
-            "WHERE o.createdAt >= :startDate AND o.createdAt < :endDate " +
+            "WHERE (COALESCE(:startDate, o.createdAt) = o.createdAt OR o.createdAt >= :startDate) " +
+            "AND (COALESCE(:endDate, o.createdAt) = o.createdAt OR o.createdAt < :endDate) " +
             "GROUP BY s.stationId, s.stationName " +
             "ORDER BY SUM(o.finalAmount) DESC")
     List<StationSalesOverviewDTO> getStationsLastMonthSalesOverview(
